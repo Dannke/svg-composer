@@ -4,12 +4,14 @@
 экспортирует в SVG. Подробное ТЗ — в BRIEF.md. Источник истины по объектам, цветам и
 правилам — файл Figma (через Figma MCP), а не память и не догадки.
 
-## Команды (заполнить после выбора стека)
-- Установка: TODO
-- Разработка: TODO
-- Сборка: TODO
-- Тесты: TODO
-- E2E (Playwright): TODO
+## Команды
+- Установка: `npm install`
+- Разработка: `npm run dev` (http://localhost:5173, /api/compose — middleware Vite)
+- Сборка: `npm run build`
+- Тесты: `npm test`
+- E2E (Playwright): `npm run e2e` (против прода: `E2E_BASE_URL=https://svg-composer.svg-composer.workers.dev npm run e2e`)
+- Деплой: `npm run deploy` (Cloudflare Workers)
+- Ассеты: `npm run figma:fetch` (FIGMA_TOKEN в .env) → `npm run assets`
 Перед тем как считать задачу выполненной, запусти сборку и тесты и убедись, что они проходят.
 
 ## Предметные правила (нарушать нельзя)
