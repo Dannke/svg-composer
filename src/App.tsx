@@ -228,7 +228,7 @@ export function App() {
   const pxPerUnit = (svgRef.current?.clientWidth || comp.format.w) / comp.format.w;
   const lift = 8 / (comp.scale * pxPerUnit);
   const { w: W, h: H } = comp.format;
-  const accents = { '--accent': scheme.colors.bg3, '--accent-soft': scheme.colors.bg1, '--accent-mid': scheme.colors.bg2 } as React.CSSProperties;
+  const accents = { '--accent': scheme.colors.bg3, '--sticker': scheme.colors.bg1 } as React.CSSProperties;
 
   return (
     <div className="app" style={accents}>
