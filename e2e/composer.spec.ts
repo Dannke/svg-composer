@@ -17,7 +17,7 @@ test('сценарий Б: названия с опечаткой и слово�
   expect(await items(page).evaluateAll((els) => els.map((e) => e.getAttribute('data-slug')))).toEqual(['lamp', 'headphones', 'book']);
 });
 
-test('сценарий А: метафора → объекты (без ключа — запасной поиск по смыслам)', async ({ page }) => {
+test('сценарий А: метафора → объекты (LLM, локально без ключа — запасной поиск по смыслам)', async ({ page }) => {
   await page.goto('/');
   await page.getByTestId('metaphor').fill('Как накопить деньги и не тратить лишнего на покупки');
   await page.getByTestId('metaphor-go').click();

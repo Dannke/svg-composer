@@ -16,7 +16,7 @@ describe('валидация ответа LLM', () => {
 });
 
 describe('compose: модели, запасной режим, кэш', () => {
-  it('переходит к следующей модели при ошибке', async () => {
+  it('ошибка одной модели не мешает ответу другой', async () => {
     const f = vi.fn()
       .mockResolvedValueOnce(new Response('rate limited', { status: 429 }))
       .mockResolvedValueOnce(answer('{"objects":["coin","wallet"],"preset":"assembled"}'));

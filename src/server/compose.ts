@@ -9,17 +9,15 @@ export interface ComposeResult {
   reason?: string;
 }
 
-// быстрые первыми: на 429/403 бесплатные модели отвечают за ~1 с, поэтому перебор дешёвый
+// доступность бесплатных моделей меняется от запроса к запросу (429/503/таймауты), поэтому опрашиваем их параллельно
 export const DEFAULT_MODELS = [
-  'nvidia/nemotron-3.5-super-vl:free',
-  'nvidia/nemotron-3.5-lightning:free',
   'google/gemma-4-31b-it:free',
+  'nvidia/nemotron-3.5-super-vl:free',
+  'dots-studio/dots-3-note-preview:free',
   'google/gemma-4-26b-a4b-it:free',
-  'nvidia/nemotron-3-ultra-550b-a55b:free',
 ];
 const DEFAULT_SET = ['book', 'lamp', 'headphones'];
-const MODEL_TIMEOUT_MS = 8_000;
-const TOTAL_BUDGET_MS = 20_000;
+const TIMEOUT_MS = 15_000;
 
 const SYSTEM = `Ты подбираешь готовые иллюстративные объекты под метафору или заголовок статьи.
 Доступные объекты (id — название — смыслы):
@@ -67,35 +65,31 @@ export async function compose(query: string, deps: Deps = {}): Promise<ComposeRe
   let result: ComposeResult | null = null;
   if (deps.apiKey) {
     const doFetch = deps.fetch ?? fetch;
-    const deadline = Date.now() + TOTAL_BUDGET_MS;
-    for (const model of deps.models?.length ? deps.models : DEFAULT_MODELS) {
-      const left = deadline - Date.now();
-      if (left < 1_000) break;
-      try {
-        const res = await doFetch('https://openrouter.ai/api/v1/chat/completions', {
-          method: 'POST',
-          headers: { Authorization: `Bearer ${deps.apiKey}`, 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            model,
-            temperature: 0.2,
-            messages: [
-              { role: 'system', content: SYSTEM },
-              { role: 'user', content: query.slice(0, 500) },
-            ],
-          }),
-          signal: AbortSignal.timeout(Math.min(MODEL_TIMEOUT_MS, left)),
-        });
-        if (!res.ok) continue;
-        const json = (await res.json()) as { choices?: { message?: { content?: string } }[] };
-        const parsed = parseLlmAnswer(json.choices?.[0]?.message?.content ?? '');
-        if (parsed) {
-          result = { ...parsed, source: 'llm', model };
-          break;
-        }
-      } catch {
-        // таймаут или сеть — пробуем следующую модель
-      }
-    }
+    const stop = new AbortController();
+    const signal = AbortSignal.any([stop.signal, AbortSignal.timeout(TIMEOUT_MS)]);
+    const ask = async (model: string): Promise<ComposeResult> => {
+      const res = await doFetch('https://openrouter.ai/api/v1/chat/completions', {
+        method: 'POST',
+        headers: { Authorization: `Bearer ${deps.apiKey}`, 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          model,
+          temperature: 0.2,
+          messages: [
+            { role: 'system', content: SYSTEM },
+            { role: 'user', content: query.slice(0, 500) },
+          ],
+        }),
+        signal,
+      });
+      if (!res.ok) throw new Error(`${model}: ${res.status}`);
+      const json = (await res.json()) as { choices?: { message?: { content?: string } }[] };
+      const parsed = parseLlmAnswer(json.choices?.[0]?.message?.content ?? '');
+      if (!parsed) throw new Error(`${model}: невалидный ответ`);
+      return { ...parsed, source: 'llm', model };
+    };
+    // первый валидный ответ побеждает, остальные запросы отменяются
+    result = await Promise.any((deps.models?.length ? deps.models : DEFAULT_MODELS).map(ask)).catch(() => null);
+    stop.abort();
   }
   if (!result) {
     const slugs = matchTags(query, OBJECTS);
@@ -109,7 +103,7 @@ export async function compose(query: string, deps: Deps = {}): Promise<ComposeRe
   return result;
 }
 
-/** Общий HTTP-обработчик (Web Request/Response) — для Vercel и для dev/preview-сервера Vite. */
+/** Общий HTTP-обработчик (Web Request/Response) — для Cloudflare Worker и для dev/preview-сервера Vite. */
 export async function handleCompose(req: Request, env: Record<string, string | undefined>): Promise<Response> {
   if (req.method !== 'POST') return new Response('Method Not Allowed', { status: 405 });
   let query = '';
