@@ -11,7 +11,8 @@
     "preview": "vite preview --port 4173",
     "test": "vitest run",
     "e2e": "playwright test",
-    "examples": "vite-node scripts/make-examples.ts"
+    "examples": "vite-node scripts/make-examples.ts",
+    "deploy": "npm run build && wrangler deploy"
   },
   "dependencies": {
     "react": "^19.3.1",
@@ -27,6 +28,7 @@
     "typescript": "^7.0.2",
     "vite": "^8.3.5",
     "vite-node": "^6.0.0",
-    "vitest": "^5.1.0"
+    "vitest": "^5.1.0",
+    "wrangler": "^4.156.2"
   }
 }

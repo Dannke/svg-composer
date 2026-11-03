@@ -9,15 +9,17 @@ export interface ComposeResult {
   reason?: string;
 }
 
+// быстрые первыми: на 429/403 бесплатные модели отвечают за ~1 с, поэтому перебор дешёвый
 export const DEFAULT_MODELS = [
+  'nvidia/nemotron-3.5-super-vl:free',
+  'nvidia/nemotron-3.5-lightning:free',
   'google/gemma-4-31b-it:free',
-  'nvidia/nemotron-3-ultra-550b-a55b:free',
-  'thinkingmachines/inkling:free',
   'google/gemma-4-26b-a4b-it:free',
+  'nvidia/nemotron-3-ultra-550b-a55b:free',
 ];
 const DEFAULT_SET = ['book', 'lamp', 'headphones'];
-const TIMEOUT_MS = 10_000;
-const MAX_MODELS = 3;
+const MODEL_TIMEOUT_MS = 8_000;
+const TOTAL_BUDGET_MS = 20_000;
 
 const SYSTEM = `Ты подбираешь готовые иллюстративные объекты под метафору или заголовок статьи.
 Доступные объекты (id — название — смыслы):
@@ -65,7 +67,10 @@ export async function compose(query: string, deps: Deps = {}): Promise<ComposeRe
   let result: ComposeResult | null = null;
   if (deps.apiKey) {
     const doFetch = deps.fetch ?? fetch;
-    for (const model of (deps.models?.length ? deps.models : DEFAULT_MODELS).slice(0, MAX_MODELS)) {
+    const deadline = Date.now() + TOTAL_BUDGET_MS;
+    for (const model of deps.models?.length ? deps.models : DEFAULT_MODELS) {
+      const left = deadline - Date.now();
+      if (left < 1_000) break;
       try {
         const res = await doFetch('https://openrouter.ai/api/v1/chat/completions', {
           method: 'POST',
@@ -78,7 +83,7 @@ export async function compose(query: string, deps: Deps = {}): Promise<ComposeRe
               { role: 'user', content: query.slice(0, 500) },
             ],
           }),
-          signal: AbortSignal.timeout(TIMEOUT_MS),
+          signal: AbortSignal.timeout(Math.min(MODEL_TIMEOUT_MS, left)),
         });
         if (!res.ok) continue;
         const json = (await res.json()) as { choices?: { message?: { content?: string } }[] };
