@@ -4,7 +4,7 @@
   "version": "1.0.0",
   "type": "module",
   "scripts": {
-    "figma:fetch": "node scripts/fetch-figma.mjs",
+    "figma:fetch": "node --env-file-if-exists=.env scripts/fetch-figma.mjs",
     "assets": "node scripts/build-assets.mjs",
     "dev": "vite",
     "build": "tsc --noEmit && vite build",
