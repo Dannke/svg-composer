@@ -1,5 +1,5 @@
 import { describe, expect, it, vi } from 'vitest';
-import { compose, parseLlmAnswer } from '../src/server/compose';
+import { compose, HEDGE_MS, parseLlmAnswer } from '../src/server/compose';
 
 const answer = (content: string) => new Response(JSON.stringify({ choices: [{ message: { content } }] }), { status: 200 });
 
@@ -23,6 +23,28 @@ describe('compose: модели, запасной режим, кэш', () => {
     const r = await compose('запрос-1', { apiKey: 'k', models: ['a:free', 'b:free'], fetch: f });
     expect(r).toMatchObject({ slugs: ['coin', 'wallet'], source: 'llm', model: 'b:free' });
     expect(f).toHaveBeenCalledTimes(2);
+  });
+  it('экономия лимита: если первая модель ответила, вторая не вызывается', async () => {
+    const f = vi.fn().mockResolvedValue(answer('{"objects":["book","lamp"]}'));
+    const r = await compose('экономия-1', { apiKey: 'k', models: ['a:free', 'b:free'], fetch: f });
+    expect(r.model).toBe('a:free');
+    expect(f).toHaveBeenCalledTimes(1);
+  });
+  it('медленная модель: следующая подключается только через HEDGE_MS', async () => {
+    vi.useFakeTimers();
+    try {
+      const hang = (_url: string, init: RequestInit) =>
+        new Promise<Response>((_, reject) => init.signal!.addEventListener('abort', () => reject(new Error('aborted'))));
+      const f = vi.fn().mockImplementationOnce(hang).mockResolvedValueOnce(answer('{"objects":["pen"]}'));
+      const p = compose('медленно-1', { apiKey: 'k', models: ['slow:free', 'fast:free'], fetch: f });
+      await vi.advanceTimersByTimeAsync(HEDGE_MS - 100);
+      expect(f).toHaveBeenCalledTimes(1);
+      await vi.advanceTimersByTimeAsync(200);
+      expect(await p).toMatchObject({ slugs: ['pen'], model: 'fast:free' });
+      expect(f).toHaveBeenCalledTimes(2);
+    } finally {
+      vi.useRealTimers();
+    }
   });
   it('без валидного ответа — поиск по ключевым словам', async () => {
     const f = vi.fn().mockResolvedValue(answer('{"objects":["rocket"]}'));

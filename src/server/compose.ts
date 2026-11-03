@@ -9,15 +9,17 @@ export interface ComposeResult {
   reason?: string;
 }
 
-// доступность бесплатных моделей меняется от запроса к запросу (429/503/таймауты), поэтому опрашиваем их параллельно
+// доступность бесплатных моделей меняется от запроса к запросу (429/503/таймауты); первой — самая стабильная в замерах
 export const DEFAULT_MODELS = [
-  'google/gemma-4-31b-it:free',
   'nvidia/nemotron-3.5-super-vl:free',
+  'google/gemma-4-31b-it:free',
   'dots-studio/dots-3-note-preview:free',
   'google/gemma-4-26b-a4b-it:free',
 ];
 const DEFAULT_SET = ['book', 'lamp', 'headphones'];
 const TIMEOUT_MS = 15_000;
+/** Сколько ждать ответа модели, прежде чем подключить следующую (при ошибке — подключается сразу). */
+export const HEDGE_MS = 6_000;
 
 const SYSTEM = `Ты подбираешь готовые иллюстративные объекты под метафору или заголовок статьи.
 Доступные объекты (id — название — смыслы):
@@ -87,8 +89,28 @@ export async function compose(query: string, deps: Deps = {}): Promise<ComposeRe
       if (!parsed) throw new Error(`${model}: невалидный ответ`);
       return { ...parsed, source: 'llm', model };
     };
-    // первый валидный ответ побеждает, остальные запросы отменяются
-    result = await Promise.any((deps.models?.length ? deps.models : DEFAULT_MODELS).map(ask)).catch(() => null);
+    // бережём дневной лимит :free (50 запросов): следующая модель стартует, только если предыдущая
+    // упала или молчит дольше HEDGE_MS; первый валидный ответ побеждает, остальные запросы отменяются
+    const models = deps.models?.length ? deps.models : DEFAULT_MODELS;
+    result = await new Promise<ComposeResult | null>((resolve) => {
+      let started = 0;
+      let failed = 0;
+      let done = false;
+      let timer: ReturnType<typeof setTimeout> | undefined;
+      const finish = (r: ComposeResult | null) => {
+        done = true;
+        clearTimeout(timer);
+        resolve(r);
+      };
+      const launch = () => {
+        if (done || started === models.length) return;
+        clearTimeout(timer);
+        timer = setTimeout(launch, HEDGE_MS);
+        ask(models[started++]).then(finish, () => (++failed === models.length ? finish(null) : launch()));
+      };
+      signal.addEventListener('abort', () => finish(null));
+      launch();
+    });
     stop.abort();
   }
   if (!result) {
