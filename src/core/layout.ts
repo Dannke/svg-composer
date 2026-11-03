@@ -15,20 +15,15 @@ interface Placed extends LayoutInput {
 
 const PAD = 0.08;
 
-function rowsFor(format: Format, n: number) {
-  const ratio = format.w / format.h;
-  return Math.min(n, ratio >= 1.3 ? 1 : ratio >= 0.9 ? 2 : 3);
-}
-
 /**
  * Раскладка в исходных единицах: объекты в ряд(ы).
  * «Собранно» — с наложением и лёгкой диагональной лесенкой, «Со смещением» — с промежутками,
  * сильнее разнесено по вертикали и зеркально по горизонтали (как в эталонных кадрах SVG-drop).
  */
-function arrange(inputs: LayoutInput[], size: Size, format: Format, spread: boolean): Placed[] {
+function arrange(inputs: LayoutInput[], size: Size, spread: boolean, rowCount: number): Placed[] {
   const sized = inputs.map((it) => ({ ...it, ...getAsset(it.slug, size, it.kind).bbox }));
-  const rows = rowsFor(format, sized.length);
-  const perRow = Math.ceil(sized.length / rows);
+  const perRow = Math.ceil(sized.length / rowCount);
+  const rows = Math.ceil(sized.length / perRow);
   const out: Placed[] = [];
   let rowTop = 0;
   for (let r = 0; r < rows; r++) {
@@ -92,6 +87,13 @@ export const newUid = () => `i${Date.now().toString(36)}${(counter++).toString(3
 export function layout(inputs: LayoutInput[], size: Size, format: Format, preset: Preset, uid = newUid) {
   if (!inputs.length) return { scale: 1, items: [] as Item[] };
   const full = { x: format.w * PAD, y: format.h * PAD, w: format.w * (1 - 2 * PAD), h: format.h * (1 - 2 * PAD) };
-  const placed = arrange(inputs, size, format, preset === 'offset');
+  // число рядов подбирается под формат: то, при котором объекты получаются крупнее всего
+  const spread = preset === 'offset';
+  const candidates = [1, 2, 3].filter((r) => r <= inputs.length).map((r) => arrange(inputs, size, spread, r));
+  const fitScale = (ps: Placed[]) => {
+    const b = bounds(ps);
+    return Math.min(full.w / b.w, full.h / b.h);
+  };
+  const placed = candidates.reduce((best, c) => (fitScale(c) > fitScale(best) ? c : best));
   return fit(placed, preset === 'underTitle' ? titleFreeArea(format) : full, uid);
 }

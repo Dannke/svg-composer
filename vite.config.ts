@@ -26,5 +26,7 @@ function apiPlugin(env: Record<string, string>): Plugin {
 
 export default defineConfig(({ mode }) => ({
   plugins: [react(), apiPlugin(loadEnv(mode, process.cwd(), 'OPENROUTER_'))],
+  // SVG всех 40 объектов бандлятся в приложение строками — крупный чанк ожидаем
+  build: { chunkSizeWarningLimit: 4000 },
   test: { environment: 'jsdom', include: ['tests/**/*.test.ts'] },
 }));

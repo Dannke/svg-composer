@@ -26,7 +26,7 @@ export interface Scheme {
   colors: Record<string, string>;
 }
 
-export const ASSETS = manifest as Asset[];
+export const ASSETS = manifest as unknown as Asset[];
 export const SCHEMES = schemesData.schemes as Scheme[];
 export const SOURCE_SCHEME = SCHEMES.find((s) => s.id === schemesData.source)!;
 export const CANVAS_ROLE = schemesData.canvasRole;
