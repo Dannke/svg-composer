@@ -1,6 +1,6 @@
 import { memo, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import { AnimatePresence, animate, motion, useReducedMotion, type AnimationPlaybackControls } from 'motion/react';
-import { AlertCircle, ArrowDown, ArrowDownToLine, ArrowUp, ArrowUpToLine, Copy, Download, Loader2, Minus, Plus, Trash2 } from 'lucide-react';
+import { AlertCircle, ArrowDown, ChevronDown, ArrowDownToLine, ArrowUp, ArrowUpToLine, Copy, Download, Loader2, Minus, Plus, Trash2 } from 'lucide-react';
 import { FORMATS, OBJECTS, PRESETS, S_TO_L, SCHEMES, getAsset, type Format, type Kind, type Preset, type Size } from './core/catalog';
 import { layout, newUid, startScale, type LayoutInput } from './core/layout';
 import { matchNames } from './core/match';
@@ -80,6 +80,22 @@ export function App() {
   const [status, setStatus] = useState('');
   const [error, setError] = useState(false);
   const [busy, setBusy] = useState(false);
+  // свёрнута ли библиотека — помним между визитами; без доступа к localStorage просто открыта
+  const [libOpen, setLibOpen] = useState(() => {
+    try {
+      return localStorage.getItem('library-open') !== '0';
+    } catch {
+      return true;
+    }
+  });
+  const toggleLibrary = () => {
+    setLibOpen(!libOpen);
+    try {
+      localStorage.setItem('library-open', libOpen ? '0' : '1');
+    } catch {
+      // приватный режим и т. п. — состояние просто не сохранится
+    }
+  };
   const [flipKey, setFlipKey] = useState(0);
   const svgRef = useRef<SVGSVGElement>(null);
   const drag = useRef<{ uid: string; dx: number; dy: number } | null>(null);
@@ -266,15 +282,22 @@ export function App() {
           </p>
         </section>
 
-        <section>
-          <h2>Библиотека</h2>
-          <div className="library">
-            {OBJECTS.map((o) => (
-              <button key={o.slug} className="card" data-testid={`add-${o.slug}`} onClick={() => addObject(o.slug)} title={`Добавить на холст: ${o.nameRu}`}>
-                <span className="thumb"><Thumb slug={o.slug} scheme={comp.scheme} /></span>
-                <span className="card-name">{o.nameRu}</span>
-              </button>
-            ))}
+        <section className={libOpen ? '' : 'collapsed'}>
+          <h2>
+            <button className="h-toggle" data-testid="library-toggle" aria-expanded={libOpen} aria-controls="library" onClick={toggleLibrary}>
+              Библиотека <span className="h-sub">{OBJECTS.length}</span>
+              <ChevronDown className="chevron" size={16} aria-hidden />
+            </button>
+          </h2>
+          <div className="collapsible" id="library" inert={!libOpen}>
+            <div className="library">
+              {OBJECTS.map((o) => (
+                <button key={o.slug} className="card" data-testid={`add-${o.slug}`} onClick={() => addObject(o.slug)} title={`Добавить на холст: ${o.nameRu}`}>
+                  <span className="thumb"><Thumb slug={o.slug} scheme={comp.scheme} /></span>
+                  <span className="card-name">{o.nameRu}</span>
+                </button>
+              ))}
+            </div>
           </div>
         </section>
 

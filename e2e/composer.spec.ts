@@ -94,3 +94,23 @@ test('библиотека: первый объект не на весь хол�
   await page.getByTestId('add-lamp').click();
   await expect(page.getByTestId('preset-assembled')).toHaveAttribute('aria-pressed', 'false');
 });
+
+test('библиотека сворачивается и помнит состояние после перезагрузки', async ({ page }) => {
+  await page.goto('/');
+  const toggle = page.getByTestId('library-toggle');
+  await expect(toggle).toHaveAttribute('aria-expanded', 'true');
+  await expect(page.getByTestId('add-lamp')).toBeVisible();
+  await toggle.click();
+  await expect(toggle).toHaveAttribute('aria-expanded', 'false');
+  await expect(page.getByTestId('add-lamp')).toBeHidden();
+  await page.reload();
+  await expect(page.getByTestId('library-toggle')).toHaveAttribute('aria-expanded', 'false');
+  await expect(page.getByTestId('add-lamp')).toBeHidden();
+  await page.getByTestId('library-toggle').click();
+  await expect(page.getByTestId('add-lamp')).toBeVisible();
+  await page.waitForTimeout(400); // анимация разворачивания
+  await page.screenshot({ path: 'test-results/shots/library-open.png', clip: { x: 0, y: 0, width: 330, height: 900 } });
+  await page.getByTestId('library-toggle').click();
+  await page.waitForTimeout(400);
+  await page.screenshot({ path: 'test-results/shots/library-collapsed.png', clip: { x: 0, y: 0, width: 330, height: 900 } });
+});

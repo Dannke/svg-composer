@@ -44,6 +44,18 @@ h1, h2, p { margin: 0; }
 section { border-top: 1px solid var(--hairline); padding: 16px 0; }
 h2 { font-size: 12px; line-height: 16px; font-weight: 700; letter-spacing: 0.125px; color: var(--ink-secondary); margin-bottom: 12px; display: flex; gap: 8px; align-items: baseline; }
 .h-sub { font-weight: 400; color: var(--ink-muted); letter-spacing: 0; }
+/* Сворачиваемая секция: заголовок — кнопка во всю ширину, высота анимируется через grid-template-rows */
+.h-toggle { width: 100%; height: auto; padding: 0; gap: 8px; justify-content: flex-start; font: inherit; color: inherit; letter-spacing: inherit; border-radius: var(--r-xs); }
+.h-toggle:hover .chevron { color: var(--ink); }
+.chevron { margin-left: auto; color: var(--ink-muted); transition: transform .2s var(--ease), color .15s var(--ease); }
+.collapsed .chevron { transform: rotate(-90deg); }
+.collapsible { display: grid; grid-template-rows: 1fr; transition: grid-template-rows .25s var(--ease), opacity .2s var(--ease), visibility 0s; }
+/* запас 4 px, чтобы overflow не обрезал тень карточек и рамку фокуса */
+.collapsible > * { min-height: 0; overflow: hidden; padding: 4px; margin: -4px; }
+section > h2:has(.h-toggle) { transition: margin-bottom .25s var(--ease); }
+.collapsed h2 { margin-bottom: 0; }
+/* visibility скрывает карточки от мыши и фокуса, но только после анимации сворачивания */
+.collapsed .collapsible { grid-template-rows: 0fr; opacity: 0; visibility: hidden; transition-delay: 0s, 0s, .25s; }
 .field { display: grid; gap: 8px; margin-bottom: 16px; }
 .field label { font-weight: 500; display: flex; align-items: center; gap: 8px; }
 .step { display: inline-grid; place-items: center; width: 20px; height: 20px; border-radius: var(--r-xs); background: var(--canvas-soft); border: 1px solid var(--hairline); font-size: 12px; font-weight: 700; color: var(--ink-secondary); }
