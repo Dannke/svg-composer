@@ -52,3 +52,29 @@ describe('пресеты раскладки', () => {
     expect(spread(layout(inputs, 'L', f, 'offset', uid))).toBeGreaterThan(spread(layout(inputs, 'L', f, 'assembled', uid)));
   });
 });
+
+describe('укладка по эталону SVG-drop (телефон на книгу, пазлы на телефон)', () => {
+  const main = (...slugs: string[]) => slugs.map((slug) => ({ slug, kind: 'main' as Kind }));
+  const offset = (r: ReturnType<typeof layout>, host: string, guest: string) => {
+    const h = r.items.find((i) => i.slug === host)!;
+    const g = r.items.find((i) => i.slug === guest)!;
+    const { w, h: hh } = getAsset(host, 'L', 'main').bbox;
+    return { dx: (g.cx - h.cx) / (w * r.scale), dy: (g.cy - h.cy) / (hh * r.scale) };
+  };
+
+  it('телефон кладётся на книгу, пазлы на телефон, слоем выше основания', () => {
+    const r = layout(main('puzzle', 'lamp', 'phone', 'book'), 'L', FORMATS[1], 'assembled', uid);
+    expect(r.items.map((i) => i.slug)).toEqual(['lamp', 'book', 'phone', 'puzzle']);
+    expect(offset(r, 'book', 'phone').dx).toBeCloseTo(-0.0102, 4);
+    expect(offset(r, 'book', 'phone').dy).toBeCloseTo(-0.1499, 4);
+    expect(offset(r, 'phone', 'puzzle').dy).toBeCloseTo(-0.1503, 4);
+  });
+
+  it('без основания объект встаёт в ряд; второй телефон на ту же книгу не кладётся', () => {
+    expect(layout(main('phone', 'pen'), 'L', FORMATS[1], 'assembled', uid).items.map((i) => i.slug)).toEqual(['phone', 'pen']);
+    const r = layout(main('book', 'phone', 'phone'), 'L', FORMATS[1], 'assembled', uid);
+    const [, onBook, second] = r.items;
+    expect(offset(r, 'book', 'phone').dy).toBeCloseTo(-0.1499, 4);
+    expect(Math.abs(second.cx - onBook.cx)).toBeGreaterThan(1);
+  });
+});

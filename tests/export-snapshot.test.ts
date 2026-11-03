@@ -4,7 +4,8 @@ import { ASSETS, FORMATS, SCHEMES, type Kind, type Size } from '../src/core/cata
 import { layout } from '../src/core/layout';
 import { renderSvg, svgBody, type Composition } from '../src/core/render';
 
-// Снимок экспорта сделан до редизайна интерфейса: UI не должен менять ни байта в SVG.
+// Снимок экспорта: UI не должен менять ни байта в SVG. Обновлялся только при намеренной правке раскладки
+// (укладка телефона на книгу по эталону) — разметка объектов при этом совпала, менялись transform и порядок групп.
 const bodies = Object.fromEntries(ASSETS.map((a) => [a.file, svgBody(readFileSync(`assets/objects/${a.file}`, 'utf8'))]));
 
 function fixed(size: Size, schemeIdx: number, formatIdx: number): Composition {

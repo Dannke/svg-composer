@@ -1,3 +1,4 @@
+import stacking from '../data/stacking.json';
 import { getAsset, type Format, type Kind, type Preset, type Size } from './catalog';
 import type { Item } from './render';
 
@@ -15,13 +16,33 @@ interface Placed extends LayoutInput {
 
 const PAD = 0.08;
 
+/** Для каждого объекта — на какой объект набора он кладётся (пары из эталона Figma) или null. Один guest на host. */
+function stackHosts(inputs: LayoutInput[]) {
+  const busy = new Set<number>();
+  return inputs.map((it, i) => {
+    for (const p of stacking.pairs) {
+      if (p.guest !== it.slug) continue;
+      const host = inputs.findIndex((x, j) => j !== i && x.slug === p.host && !busy.has(j));
+      if (host >= 0) {
+        busy.add(host);
+        return { host, dx: p.dx, dy: p.dy };
+      }
+    }
+    return null;
+  });
+}
+
 /**
- * Раскладка в исходных единицах: объекты в ряд(ы).
+ * Раскладка в исходных единицах: объекты в ряд(ы); уложенные на другой объект (телефон на книгу)
+ * места в ряду не занимают и идут слоем сразу над своим основанием.
  * «Собранно» — с наложением и лёгкой диагональной лесенкой, «Со смещением» — с промежутками,
  * сильнее разнесено по вертикали и зеркально по горизонтали (как в эталонных кадрах SVG-drop).
  */
 function arrange(inputs: LayoutInput[], size: Size, spread: boolean, rowCount: number): Placed[] {
-  const sized = inputs.map((it) => ({ ...it, ...getAsset(it.slug, size, it.kind).bbox }));
+  const all = inputs.map((it) => ({ ...it, ...getAsset(it.slug, size, it.kind).bbox }));
+  const hosts = stackHosts(inputs);
+  const roots = all.map((_, i) => i).filter((i) => !hosts[i]);
+  const sized = roots.map((i) => all[i]);
   const perRow = Math.ceil(sized.length / rowCount);
   const rows = Math.ceil(sized.length / perRow);
   const out: Placed[] = [];
@@ -32,7 +53,8 @@ function arrange(inputs: LayoutInput[], size: Size, spread: boolean, rowCount: n
     const placed = row.map((it, i) => {
       if (i > 0) {
         const prev = row[i - 1];
-        const gap = spread ? 0.12 * (prev.w + it.w) / 2 : -0.12 * Math.min(prev.w, it.w);
+        // в эталоне «Собранно» соседние объекты лишь слегка заходят друг на друга
+        const gap = spread ? 0.12 * (prev.w + it.w) / 2 : -0.05 * Math.min(prev.w, it.w);
         x += prev.w / 2 + gap + it.w / 2;
       }
       const stagger = (i % 2 ? 1 : -1) * (spread ? 0.18 : 0.08);
@@ -43,7 +65,19 @@ function arrange(inputs: LayoutInput[], size: Size, spread: boolean, rowCount: n
     for (const p of placed) out.push({ ...p, x: spread ? midX - p.x : p.x - midX, y: p.y + rowTop + rowH / 2 });
     rowTop += rowH * (spread ? 1.1 : 0.85);
   }
-  return out;
+  const pos = new Map(roots.map((r, k) => [r, out[k]]));
+  const ordered: Placed[] = [];
+  const emit = (i: number) => {
+    const base = pos.get(i)!;
+    ordered.push(base);
+    hosts.forEach((s, j) => {
+      if (s?.host !== i) return;
+      pos.set(j, { ...all[j], x: base.x + s.dx * base.w, y: base.y + s.dy * base.h });
+      emit(j);
+    });
+  };
+  roots.forEach(emit);
+  return ordered;
 }
 
 function bounds(ps: { x: number; y: number; w: number; h: number }[]) {

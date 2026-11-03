@@ -45,16 +45,19 @@ test('S/L, все цветовые схемы, пресеты, правка об
     await expect(page.locator('[data-testid=canvas] > rect').first()).toHaveAttribute('fill', bg);
     for (const preset of ['assembled', 'offset', 'underTitle']) {
       await page.getByTestId(`preset-${preset}`).click();
+      await page.waitForTimeout(500); // переход между пресетами анимирован
       await page.getByTestId('canvas').screenshot({ path: `test-results/shots/${scheme}-${preset}.png` });
     }
   }
 
   // выбор объекта, фоновый вид, поворот, дублирование, удаление
-  await items(page).nth(1).click();
+  // верхний слой: нижние объекты частично закрыты уложенными сверху (телефон на книге, пазлы на телефоне)
+  const target = items(page).nth(5);
+  await target.click();
   await page.getByTestId('kind-bg').click();
-  await expect(items(page).nth(1)).toHaveAttribute('data-kind', 'bg');
+  await expect(target).toHaveAttribute('data-kind', 'bg');
   await page.getByTestId('rotate').fill('30');
-  await expect(items(page).nth(1)).toHaveAttribute('transform', /rotate\(30\)/);
+  await expect(target).toHaveAttribute('transform', /rotate\(30\)/);
   await page.getByTestId('duplicate').click();
   await expect(items(page)).toHaveCount(7);
   await page.getByTestId('delete').click();

@@ -10,7 +10,7 @@ const bodies = Object.fromEntries(ASSETS.map((a) => [a.file, svgBody(readFileSyn
 
 const examples: { file: string; scenario: 'А' | 'Б'; query: string; format: string; size: Size; scheme: string; preset?: Preset }[] = [
   { file: '01-finance-peach-1200x630.svg', scenario: 'А', query: 'Как накопить на мечту: деньги, бюджет и идеи для экономии', format: '1200x630', size: 'L', scheme: 'peach' },
-  { file: '02-study-lilac-1000x1000.svg', scenario: 'Б', query: 'лампа, книга, ручка, наушники', format: '1000x1000', size: 'L', scheme: 'lilac', preset: 'offset' },
+  { file: '02-study-lilac-1000x1000.svg', scenario: 'Б', query: 'книга, телефон, пазлы, наушники, лампа', format: '1000x1000', size: 'L', scheme: 'lilac', preset: 'offset' },
   { file: '03-spring-teal-800x1200.svg', scenario: 'А', query: 'Весенний вечер дома: цветы, музыка и открытка маме', format: '800x1200', size: 'S', scheme: 'teal', preset: 'underTitle' },
 ];
 
