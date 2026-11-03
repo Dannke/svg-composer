@@ -1,5 +1,5 @@
 import stacking from '../data/stacking.json';
-import { getAsset, type Format, type Kind, type Preset, type Size } from './catalog';
+import { ASSETS, getAsset, type Format, type Kind, type Preset, type Size } from './catalog';
 import type { Item } from './render';
 
 export interface LayoutInput {
@@ -109,6 +109,15 @@ export function titleFreeArea(format: Format) {
   return w / h >= 1.3
     ? { x: w * 0.44, y: h * 0.12, w: w * 0.52, h: h * 0.76 }
     : { x: w * PAD, y: h * 0.46, w: w * (1 - 2 * PAD), h: h * 0.46 };
+}
+
+/**
+ * Масштаб для объектов, добавляемых из библиотеки на пустой холст: самый крупный объект
+ * этого размера занимает не больше 60% меньшей стороны холста, так что влезает любой следующий.
+ */
+export function startScale(size: Size, format: Format) {
+  const largest = Math.max(...ASSETS.filter((a) => a.size === size).map((a) => Math.max(a.bbox.w, a.bbox.h)));
+  return (0.6 * Math.min(format.w, format.h)) / largest;
 }
 
 let counter = 0;

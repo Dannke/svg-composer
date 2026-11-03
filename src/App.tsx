@@ -2,7 +2,7 @@ import { memo, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'rea
 import { AnimatePresence, animate, motion, useReducedMotion, type AnimationPlaybackControls } from 'motion/react';
 import { AlertCircle, ArrowDown, ArrowDownToLine, ArrowUp, ArrowUpToLine, Copy, Download, Loader2, Minus, Plus, Trash2 } from 'lucide-react';
 import { FORMATS, OBJECTS, PRESETS, S_TO_L, SCHEMES, getAsset, type Format, type Kind, type Preset, type Size } from './core/catalog';
-import { layout, newUid, type LayoutInput } from './core/layout';
+import { layout, newUid, startScale, type LayoutInput } from './core/layout';
 import { matchNames } from './core/match';
 import { canvasColor, itemMarkup, itemSize, itemTransform, renderSvg, type Composition, type Item } from './core/render';
 import { BODIES } from './bodies';
@@ -72,6 +72,8 @@ const Thumb = memo(function Thumb({ slug, scheme }: { slug: string; scheme: stri
 export function App() {
   const [comp, setComp] = useState<Composition>({ format: FORMATS[1], size: 'L', scheme: SCHEMES[0].id, scale: 1, items: [] });
   const [preset, setPreset] = useState<Preset>('assembled');
+  // подсветка пресета: true, пока расстановка сделана пресетом (А/Б, кнопка пресета, смена формата); ручные правки её гасят
+  const [arranged, setArranged] = useState(false);
   const [selected, setSelected] = useState<string | null>(null);
   const [metaphor, setMetaphor] = useState('');
   const [names, setNames] = useState('');
@@ -108,6 +110,7 @@ export function App() {
     else items.forEach((it, i) => (enterDelay.current[it.uid] = i * 0.04));
     setComp((prev) => ({ ...prev, ...c, scale: res.scale, items }));
     setSelected(null);
+    setArranged(true);
   }
 
   async function fromMetaphor() {
@@ -142,10 +145,11 @@ export function App() {
   }
 
   function addObject(slug: string) {
-    if (!comp.items.length) return relayout([{ slug, kind: 'main' }]);
     const item: Item = { uid: newUid(), slug, kind: 'main', cx: comp.format.w / 2, cy: comp.format.h / 2, rotation: 0 };
-    update((c) => ({ ...c, items: [...c.items, item] }));
+    // на пустом холсте не вписываем объект во весь формат, иначе следующие (крупнее) не влезут
+    update((c) => ({ ...c, scale: c.items.length ? c.scale : startScale(c.size, c.format), items: [...c.items, item] }));
     setSelected(item.uid);
+    setArranged(false);
   }
 
   const inputs = () => comp.items.map(({ slug, kind }) => ({ slug, kind }));
@@ -180,10 +184,12 @@ export function App() {
     const copy = { ...src, uid: newUid(), cx: src.cx + 30, cy: src.cy + 30 };
     update((c) => ({ ...c, items: [...c.items, copy] }));
     setSelected(copy.uid);
+    setArranged(false);
   }
   const remove = (uid: string) => {
     update((c) => ({ ...c, items: c.items.filter((i) => i.uid !== uid) }));
     setSelected(null);
+    setArranged(false);
   };
 
   useEffect(() => {
@@ -212,6 +218,7 @@ export function App() {
     if (!drag.current) return;
     const p = toCanvas(e);
     updateItem(drag.current.uid, { cx: p.x - drag.current.dx, cy: p.y - drag.current.dy });
+    setArranged(false);
   }
 
   function exportSvg() {
@@ -351,8 +358,8 @@ export function App() {
             <span className="tool-label" id="l-preset">Раскладка</span>
             <div className="segmented" role="group" aria-labelledby="l-preset">
               {PRESETS.map((p) => {
-                // на пустом холсте раскладки ещё нет — ни один пресет не подсвечен
-                const on = comp.items.length > 0 && preset === p.id;
+                // подсвечен, только пока расстановка сделана этим пресетом
+                const on = arranged && preset === p.id;
                 return <button key={p.id} data-testid={`preset-${p.id}`} className={on ? 'on' : ''} aria-pressed={on} onClick={() => choosePreset(p.id)}>{p.name}</button>;
               })}
             </div>
