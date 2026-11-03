@@ -350,9 +350,11 @@ export function App() {
           <div className="tool">
             <span className="tool-label" id="l-preset">Раскладка</span>
             <div className="segmented" role="group" aria-labelledby="l-preset">
-              {PRESETS.map((p) => (
-                <button key={p.id} data-testid={`preset-${p.id}`} className={preset === p.id ? 'on' : ''} aria-pressed={preset === p.id} onClick={() => choosePreset(p.id)}>{p.name}</button>
-              ))}
+              {PRESETS.map((p) => {
+                // на пустом холсте раскладки ещё нет — ни один пресет не подсвечен
+                const on = comp.items.length > 0 && preset === p.id;
+                return <button key={p.id} data-testid={`preset-${p.id}`} className={on ? 'on' : ''} aria-pressed={on} onClick={() => choosePreset(p.id)}>{p.name}</button>;
+              })}
             </div>
           </div>
           <div className="tool">

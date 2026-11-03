@@ -10,9 +10,11 @@ async function exportSvg(page: Page) {
 
 test('сценарий Б: названия с опечаткой и словоформой → композиция', async ({ page }) => {
   await page.goto('/');
+  await expect(page.getByTestId('preset-assembled')).toHaveAttribute('aria-pressed', 'false'); // пустой холст — пресет не горит
   await page.getByTestId('names').fill('лампу, нушники и книга');
   await page.getByTestId('names-go').click();
   await expect(items(page)).toHaveCount(3);
+  await expect(page.getByTestId('preset-assembled')).toHaveAttribute('aria-pressed', 'true');
   await expect(page.getByTestId('status')).toContainText('Лампа, Наушники, Книга');
   expect(await items(page).evaluateAll((els) => els.map((e) => e.getAttribute('data-slug')))).toEqual(['lamp', 'headphones', 'book']);
 });
