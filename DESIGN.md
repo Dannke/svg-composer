@@ -45,7 +45,7 @@
 `--accent-soft` + рамка `--accent-strong`; focus-visible — кольцо 2 px `--accent-strong`
 с отступом 2 px; disabled — 40 % непрозрачности и `cursor: not-allowed`.
 Пустой холст, загрузка А (спиннер в кнопке, skeleton на холсте, `aria-busy`), ошибка
-(красный текст с иконкой, `role="alert"`).
+(красный текст с иконкой в `aria-live`-статусе).
 
 **Анимации (motion).** Анимируется только внутренняя обёртка объекта, внешний
 `<g data-uid transform>` не трогаем.
