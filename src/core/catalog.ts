@@ -27,7 +27,8 @@ export interface Scheme {
 }
 
 export const ASSETS = manifest as unknown as Asset[];
-export const SCHEMES = schemesData.schemes as Scheme[];
+// чёрный и белый общие для всех схем (neutrals), у схемы в JSON только её 6 цветов
+export const SCHEMES: Scheme[] = schemesData.schemes.map((s) => ({ ...s, colors: { ...schemesData.neutrals, ...s.colors } }));
 export const SOURCE_SCHEME = SCHEMES.find((s) => s.id === schemesData.source)!;
 export const CANVAS_ROLE = schemesData.canvasRole;
 export const ROLES = schemesData.roles as Record<string, 'background' | 'object'>;

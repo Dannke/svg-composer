@@ -31,6 +31,11 @@ describe('цветовые схемы (schemes.json)', () => {
   it('у каждой схемы заданы все роли', () => {
     for (const s of SCHEMES) expect(Object.keys(s.colors).sort()).toEqual(Object.keys(ROLES).sort());
   });
+  it('схема задаёт только свои 3 цвета фона и 3 цвета объектов; чёрный и белый — общие', () => {
+    const raw = JSON.parse(readFileSync('src/data/schemes.json', 'utf8'));
+    expect(Object.keys(raw.neutrals).sort()).toEqual(['ink', 'white']);
+    for (const s of raw.schemes) expect(Object.keys(s.colors).sort()).toEqual(['bg1', 'bg2', 'bg3', 'obj1', 'obj2', 'obj3']);
+  });
   it('фон холста — цвет из группы «фон»', () => {
     expect(ROLES[CANVAS_ROLE]).toBe('background');
   });

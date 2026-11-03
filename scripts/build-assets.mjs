@@ -7,7 +7,7 @@ const read = async (p) => JSON.parse(await readFile(new URL(p, root), 'utf8'));
 const nodes = await read('scripts/figma-nodes.json');
 const meta = await read('scripts/search-meta.json');
 const schemes = await read('src/data/schemes.json');
-const source = schemes.schemes.find((s) => s.id === schemes.source).colors;
+const source = { ...schemes.neutrals, ...schemes.schemes.find((s) => s.id === schemes.source).colors };
 const roleByHex = Object.fromEntries(Object.entries(source).map(([role, hex]) => [hex, role]));
 
 const rawDir = new URL('figma-raw/', root);

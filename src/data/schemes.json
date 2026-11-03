@@ -1,5 +1,6 @@
 {
-  "_note": "Палитры из Figma: «Библиотека компонентов», группы 21:29569 / 21:29570 / 21:29579. Левая колонка — «Цвета фона», правая — «Цвета объектов». Объекты в библиотеке нарисованы в схеме source.",
+  "_note": "Палитры из Figma: «Библиотека компонентов», группы 21:29569 / 21:29570 / 21:29579. Левая колонка — «Цвета фона», правая — «Цвета объектов». Объекты в библиотеке нарисованы в схеме source. Нижняя строка обеих колонок (чёрный и белый) одинакова во всех схемах — это общие neutrals; у схемы свои только 3 цвета фона и 3 цвета объектов.",
+  "neutrals": { "ink": "#181817", "white": "#ffffff" },
   "source": "lilac",
   "roles": {
     "bg1": "background", "bg2": "background", "bg3": "background", "ink": "background",
@@ -8,13 +9,13 @@
   "canvasRole": "bg1",
   "schemes": [
     { "id": "lilac", "name": "Сиреневая",
-      "colors": { "bg1": "#d7cdf5", "bg2": "#aa9bf0", "bg3": "#7864d7", "ink": "#181817",
-                  "obj1": "#f9ecb0", "obj2": "#f9a3aa", "obj3": "#ffe3e1", "white": "#ffffff" } },
+      "colors": { "bg1": "#d7cdf5", "bg2": "#aa9bf0", "bg3": "#7864d7",
+                  "obj1": "#f9ecb0", "obj2": "#f9a3aa", "obj3": "#ffe3e1" } },
     { "id": "peach", "name": "Персиковая",
-      "colors": { "bg1": "#fdd7b9", "bg2": "#fac896", "bg3": "#d27532", "ink": "#181817",
-                  "obj1": "#f9ecb0", "obj2": "#80dada", "obj3": "#beebeb", "white": "#ffffff" } },
+      "colors": { "bg1": "#fdd7b9", "bg2": "#fac896", "bg3": "#d27532",
+                  "obj1": "#f9ecb0", "obj2": "#80dada", "obj3": "#beebeb" } },
     { "id": "teal", "name": "Бирюзовая",
-      "colors": { "bg1": "#beebeb", "bg2": "#80dada", "bg3": "#5abebe", "ink": "#181817",
-                  "obj1": "#ffd4f2", "obj2": "#6d7bfc", "obj3": "#b6c6fe", "white": "#ffffff" } }
+      "colors": { "bg1": "#beebeb", "bg2": "#80dada", "bg3": "#5abebe",
+                  "obj1": "#ffd4f2", "obj2": "#6d7bfc", "obj3": "#b6c6fe" } }
   ]
 }
