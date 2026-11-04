@@ -132,7 +132,8 @@ button.icon { width: 32px; padding: 0; }
 .toolbar { display: flex; flex-wrap: wrap; gap: 12px; align-items: flex-end; padding: 12px 24px; background: var(--surface); border-bottom: 1px solid var(--hairline); }
 .tool { display: grid; gap: 4px; }
 .tool-label { font-size: 12px; line-height: 16px; color: var(--ink-muted); }
-.toolbar .primary { margin-left: auto; }
+.toolbar .clear { margin-left: auto; }
+.undo { height: 20px; padding: 0 6px; margin-left: 4px; font-size: 12px; color: var(--ink-secondary); }
 .canvas-wrap { position: relative; flex: 1; min-height: 0; padding: 32px; display: grid; place-items: center; container-type: size; }
 .canvas-wrap svg { display: block; width: min(100cqw, 100cqh * var(--ratio)); height: auto; border-radius: var(--r-xs); box-shadow: 0 0 0 1px var(--hairline), var(--shadow-1); touch-action: none; }
 .item { cursor: move; }

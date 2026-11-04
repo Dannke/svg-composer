@@ -1,4 +1,4 @@
-import { CANVAS_ROLE, SCHEMES, SOURCE_SCHEME, getAsset, type Format, type Kind, type Size } from './catalog';
+import { CANVAS_ROLE, SCHEMES, SOURCE_SCHEME, getAsset, type Decor, type Format, type Kind, type Size } from './catalog';
 
 export interface Item {
   uid: string;
@@ -16,6 +16,8 @@ export interface Composition {
   scheme: string;
   /** единственный коэффициент масштаба для всех объектов композиции */
   scale: number;
+  /** декоративный фон; нет — однотонный фон схемы */
+  decor?: Decor;
   items: Item[];
 }
 
@@ -57,6 +59,14 @@ export function itemMarkup(item: Item, comp: Pick<Composition, 'size' | 'scheme'
   return recolor(body, comp.scheme).replace(/__ID__/g, `${idPrefix}-`);
 }
 
+/** Декоративный фон в цветах схемы (линии, конфетти, пятно — из цветов фона); '' — без декора. */
+export function decorMarkup(comp: Pick<Composition, 'decor' | 'format' | 'scheme'>, bodies: Record<string, string>) {
+  if (!comp.decor) return '';
+  const file = `decor-${comp.decor}-${comp.format.id}.svg`;
+  if (bodies[file] === undefined) throw new Error(`Нет SVG ${file}`);
+  return recolor(bodies[file], comp.scheme).replace(/__ID__/g, 'decor-');
+}
+
 /** Полный SVG композиции — используется и для экспорта, и для превью. */
 export function renderSvg(comp: Composition, bodies: Record<string, string>): string {
   const { w, h } = comp.format;
@@ -69,6 +79,9 @@ export function renderSvg(comp: Composition, bodies: Record<string, string>): st
   return [
     `<svg xmlns="http://www.w3.org/2000/svg" width="${w}" height="${h}" viewBox="0 0 ${w} ${h}" fill="none">`,
     `<rect id="background" width="${w}" height="${h}" fill="${canvasColor(comp.scheme)}"/>`,
+    ...(comp.decor ? [`<g id="decor">
+${decorMarkup(comp, bodies)}
+</g>`] : []),
     ...layers,
     '</svg>',
     '',

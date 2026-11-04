@@ -36,3 +36,22 @@ describe('экспорт SVG', () => {
     for (const d of ds) expect(svg).toContain(d);
   });
 });
+
+describe('декоративные фоны', () => {
+  const decor = Object.fromEntries(
+    ['confetti', 'blob'].flatMap((d) => FORMATS.map((f) => `decor-${d}-${f.id}.svg`)).map((f) => [f, svgBody(readFileSync(`assets/decor/${f}`, 'utf8'))]),
+  );
+  for (const s of SCHEMES)
+    for (const d of ['confetti', 'blob'] as const)
+      it(`${d} · ${s.name}: под объектами, вектор, только цвета фона схемы (+ белый, как в Figma)`, () => {
+        const svg = renderSvg({ ...comp(s.id), decor: d }, { ...bodies, ...decor });
+        const doc = new DOMParser().parseFromString(svg, 'image/svg+xml');
+        expect(doc.querySelector('parsererror')).toBeNull();
+        const g = doc.querySelector('#decor')!;
+        expect(g.previousElementSibling!.id).toBe('background');
+        expect(g.querySelector('path')).not.toBeNull();
+        expect(g.outerHTML).not.toMatch(/<image\b|data:image/);
+        const allowed = [s.colors.bg1, s.colors.bg2, s.colors.bg3, s.colors.ink, '#ffffff'];
+        for (const c of new Set(g.outerHTML.match(/#[0-9a-f]{6}\b/g))) expect(allowed, c).toContain(c);
+      });
+});

@@ -1,10 +1,10 @@
 import { memo, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import { AnimatePresence, animate, motion, useReducedMotion, type AnimationPlaybackControls } from 'motion/react';
-import { AlertCircle, ArrowDown, ChevronDown, ArrowDownToLine, ArrowUp, ArrowUpToLine, Copy, Download, Loader2, Minus, Plus, Trash2 } from 'lucide-react';
-import { FORMATS, OBJECTS, PRESETS, S_TO_L, SCHEMES, getAsset, type Format, type Kind, type Preset, type Size } from './core/catalog';
+import { AlertCircle, ArrowDown, ChevronDown, Eraser, Undo2, ArrowDownToLine, ArrowUp, ArrowUpToLine, Copy, Download, Loader2, Minus, Plus, Trash2 } from 'lucide-react';
+import { DECORS, FORMATS, OBJECTS, PRESETS, S_TO_L, SCHEMES, getAsset, type Format, type Kind, type Preset, type Size } from './core/catalog';
 import { layout, newUid, startScale, type LayoutInput } from './core/layout';
 import { matchNames } from './core/match';
-import { canvasColor, itemMarkup, itemSize, itemTransform, renderSvg, type Composition, type Item } from './core/render';
+import { canvasColor, decorMarkup, itemMarkup, itemSize, itemTransform, renderSvg, type Composition, type Item } from './core/render';
 import { BODIES } from './bodies';
 
 const nameOf = (slug: string) => OBJECTS.find((o) => o.slug === slug)?.nameRu ?? slug;
@@ -77,7 +77,7 @@ const listing = (slugs: string[], background: string[]) =>
   [slugs.map(nameOf).join(', '), background.length ? `фон: ${background.map(nameOf).join(', ')}` : ''].filter(Boolean).join(' · ');
 
 export function App() {
-  const [comp, setComp] = useState<Composition>({ format: FORMATS[1], size: 'L', scheme: SCHEMES[0].id, scale: 1, items: [] });
+  const [comp, setComp] = useState<Composition>({ format: FORMATS[1], size: 'L', scheme: SCHEMES[0].id, scale: 1, items: [], decor: 'confetti' });
   const [preset, setPreset] = useState<Preset>('assembled');
   // подсветка пресета: true, пока расстановка сделана пресетом (А/Б, кнопка пресета, смена формата); ручные правки её гасят
   const [arranged, setArranged] = useState(false);
@@ -118,7 +118,23 @@ export function App() {
   const say = (text: string, isError = false) => {
     setStatus(text);
     setError(isError);
+    setCleared(null);
   };
+  // «Очистить» без подтверждения, но с возвратом: последняя очищенная композиция до следующего действия
+  const [cleared, setCleared] = useState<Composition | null>(null);
+  function clearCanvas() {
+    say('Холст очищен');
+    setCleared(comp);
+    update((c) => ({ ...c, items: [] }));
+    setSelected(null);
+    setArranged(false);
+  }
+  function restoreCanvas() {
+    if (!cleared) return;
+    update((c) => ({ ...c, scale: cleared.scale, items: cleared.items }));
+    say('Холст возвращён');
+  }
+  const decorHtml = useMemo(() => decorMarkup(comp, BODIES), [comp.decor, comp.format, comp.scheme]);
 
   /** keep: та же композиция в другом пресете/формате — объекты сохраняют uid и плавно переезжают. */
   function relayout(inputs: LayoutInput[], p = preset, c: Pick<Composition, 'size' | 'format'> = comp, keep = false) {
@@ -293,6 +309,11 @@ export function App() {
           <p className={error ? 'status error' : 'status'} data-testid="status" aria-live="polite">
             {error && <AlertCircle size={16} aria-hidden="true" />}
             {status}
+            {cleared && !comp.items.length && (
+              <button className="ghost undo" data-testid="restore" onClick={restoreCanvas}>
+                <Undo2 size={14} aria-hidden="true" />Вернуть
+              </button>
+            )}
           </p>
         </section>
 
@@ -396,6 +417,15 @@ export function App() {
             </div>
           </div>
           <div className="tool">
+            <span className="tool-label" id="l-decor">Фон</span>
+            <div className="segmented" role="group" aria-labelledby="l-decor">
+              <button data-testid="decor-none" className={!comp.decor ? 'on' : ''} aria-pressed={!comp.decor} onClick={() => update((c) => ({ ...c, decor: undefined }))}>Без декора</button>
+              {DECORS.map((d) => (
+                <button key={d.id} data-testid={`decor-${d.id}`} className={comp.decor === d.id ? 'on' : ''} aria-pressed={comp.decor === d.id} onClick={() => update((c) => ({ ...c, decor: d.id }))}>{d.name}</button>
+              ))}
+            </div>
+          </div>
+          <div className="tool">
             <span className="tool-label" id="l-preset">Раскладка</span>
             <div className="segmented" role="group" aria-labelledby="l-preset">
               {PRESETS.map((p) => {
@@ -412,6 +442,9 @@ export function App() {
               <button className="icon" onClick={() => zoom(1.1)} title="Увеличить всю композицию" aria-label="Увеличить всю композицию"><Plus size={16} /></button>
             </div>
           </div>
+          <button data-testid="clear" className="secondary clear" disabled={!comp.items.length} onClick={clearCanvas} title="Убрать все объекты с холста">
+            <Eraser size={16} aria-hidden="true" />Очистить
+          </button>
           <button data-testid="export" className="primary" disabled={!comp.items.length} onClick={exportSvg}>
             <Download size={16} aria-hidden="true" />Скачать SVG
           </button>
@@ -428,6 +461,7 @@ export function App() {
             onPointerUp={() => (drag.current = null)}
           >
             <rect width={W} height={H} fill={canvasColor(comp.scheme)} />
+            {decorHtml && <g className="decor" pointerEvents="none" dangerouslySetInnerHTML={{ __html: decorHtml }} />}
             <AnimatePresence>
               {comp.items.map((i) => (
                 <ItemLayer

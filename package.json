@@ -5,6 +5,7 @@
   "type": "module",
   "scripts": {
     "figma:fetch": "node --env-file-if-exists=.env scripts/fetch-figma.mjs",
+    "figma:fetch-decor": "node --env-file-if-exists=.env scripts/fetch-figma.mjs decor",
     "assets": "node scripts/build-assets.mjs",
     "dev": "vite",
     "build": "tsc --noEmit && vite build",

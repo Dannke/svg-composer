@@ -40,6 +40,13 @@ export const FORMATS = [
 ] as const;
 export type Format = (typeof FORMATS)[number];
 
+/** Декоративные фоны из «Примеров композиций» Figma (assets/decor/decor-<id>-<формат>.svg). */
+export const DECORS = [
+  { id: 'confetti', name: 'Конфетти' },
+  { id: 'blob', name: 'Пятно' },
+] as const;
+export type Decor = (typeof DECORS)[number]['id'];
+
 export const PRESETS: { id: Preset; name: string }[] = [
   { id: 'assembled', name: 'Собранно' },
   { id: 'offset', name: 'Со смещением' },

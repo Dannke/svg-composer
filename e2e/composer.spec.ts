@@ -70,7 +70,7 @@ test('S/L, все цветовые схемы, пресеты, правка об
   expect(svg).not.toMatch(/<image\b|data:image|<foreignObject/);
   const check = await page.evaluate((s) => {
     const doc = new DOMParser().parseFromString(s, 'image/svg+xml');
-    return { error: !!doc.querySelector('parsererror'), groups: doc.querySelectorAll('svg > g').length, paths: doc.querySelectorAll('path').length };
+    return { error: !!doc.querySelector('parsererror'), groups: doc.querySelectorAll('svg > g:not(#decor)').length, paths: doc.querySelectorAll('path').length };
   }, svg);
   expect(check).toMatchObject({ error: false, groups: 6 });
   expect(check.paths).toBeGreaterThan(100);
@@ -138,4 +138,31 @@ test('фоновые объекты: «фоновые тюльпаны» поз�
   // фоновые объекты используют только цвета фона схемы (сиреневая: bg1 #d7cdf5, bg3 #7864d7)
   const bgGroup = svg.split('<g id="tulips"')[1].split('</g>\n<g id=')[0];
   for (const c of new Set(bgGroup.match(/#[0-9a-f]{6}/g))) expect(['#d7cdf5', '#aa9bf0', '#7864d7', '#181817']).toContain(c);
+});
+
+test('декоративный фон: переключение и экспорт; «Очистить» с возвратом', async ({ page }) => {
+  await page.goto('/');
+  await page.getByTestId('names').fill('наушники, монета, фоновые тюльпаны');
+  await page.getByTestId('names-go').click();
+  await expect(items(page)).toHaveCount(3);
+  for (const d of ['confetti', 'blob']) {
+    await page.getByTestId(`decor-${d}`).click();
+    for (const f of ['1000x1000', '1200x630', '800x1200']) {
+      await page.getByTestId(`format-${f}`).click();
+      await page.waitForTimeout(500);
+      await page.getByTestId('canvas').screenshot({ path: `test-results/shots/decor-${d}-${f}.png` });
+    }
+    expect(await exportSvg(page)).toMatch(/<g id="decor">[\s\S]*<path/);
+  }
+  await page.getByTestId('decor-none').click();
+  expect(await exportSvg(page)).not.toContain('id="decor"');
+
+  await page.getByTestId('clear').click();
+  await expect(items(page)).toHaveCount(0);
+  await expect(page.getByTestId('clear')).toBeDisabled();
+  await page.getByTestId('restore').click();
+  await expect(items(page)).toHaveCount(3);
+  await page.getByTestId('clear').click();
+  await page.getByTestId('add-pen').click();
+  await expect(page.getByTestId('restore')).toHaveCount(0); // после нового действия возврата нет
 });
