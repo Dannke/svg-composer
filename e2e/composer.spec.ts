@@ -104,6 +104,8 @@ test('библиотека сворачивается и помнит состо
   await toggle.click();
   await expect(toggle).toHaveAttribute('aria-expanded', 'false');
   await expect(page.getByTestId('add-lamp')).toBeHidden();
+  // свёрнутая библиотека не оставляет пустого места — «Слои» поднимаются вверх
+  await expect.poll(() => page.locator('#library').evaluate((e) => e.getBoundingClientRect().height)).toBeLessThan(10);
   await page.reload();
   await expect(page.getByTestId('library-toggle')).toHaveAttribute('aria-expanded', 'false');
   await expect(page.getByTestId('add-lamp')).toBeHidden();

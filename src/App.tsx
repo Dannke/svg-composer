@@ -326,6 +326,8 @@ export function App() {
             </button>
           </h2>
           <div className="collapsible" id="library" inert={!libOpen}>
+            {/* одна обёртка: сворачивается только единственная строка сетки .collapsible */}
+            <div>
             <div className="segmented lib-kind" role="group" aria-label="Вид объектов в библиотеке">
               <button data-testid="lib-kind-main" className={libKind === 'main' ? 'on' : ''} aria-pressed={libKind === 'main'} onClick={() => setLibKind('main')}>Главные</button>
               <button data-testid="lib-kind-bg" className={libKind === 'bg' ? 'on' : ''} aria-pressed={libKind === 'bg'} onClick={() => setLibKind('bg')}>Фоновые</button>
@@ -337,6 +339,7 @@ export function App() {
                   <span className="card-name">{o.nameRu}</span>
                 </button>
               ))}
+            </div>
             </div>
           </div>
         </section>
