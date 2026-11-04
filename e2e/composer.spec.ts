@@ -76,10 +76,14 @@ test('S/L, все цветовые схемы, пресеты, правка об
   expect(check.paths).toBeGreaterThan(100);
 });
 
-test('библиотека: первый объект не на весь холст, следующие влезают; пресет горит только после раскладки', async ({ page }) => {
+test('библиотека: каждый добавленный объект сразу собирается в композицию, первый включает «Собранно»', async ({ page }) => {
   await page.goto('/');
+  await page.getByTestId('preset-offset').click(); // на пустом холсте выбран другой пресет
   await page.getByTestId('add-pen').click();
+  await expect(page.getByTestId('preset-assembled')).toHaveAttribute('aria-pressed', 'true');
+  await page.getByTestId('preset-offset').click();
   await page.getByTestId('add-tulips').click();
+  await expect(page.getByTestId('preset-offset')).toHaveAttribute('aria-pressed', 'true'); // дальше пресет сохраняется
   await expect(items(page)).toHaveCount(2);
   await page.waitForTimeout(500); // анимация появления
   const canvas = (await page.getByTestId('canvas').boundingBox())!;
@@ -89,11 +93,9 @@ test('библиотека: первый объект не на весь хол�
     expect(box.x + box.width).toBeLessThanOrEqual(canvas.x + canvas.width + 1);
     expect(box.y + box.height).toBeLessThanOrEqual(canvas.y + canvas.height + 1);
   }
-  await expect(page.getByTestId('preset-assembled')).toHaveAttribute('aria-pressed', 'false');
-  await page.getByTestId('preset-assembled').click();
-  await expect(page.getByTestId('preset-assembled')).toHaveAttribute('aria-pressed', 'true');
   await page.getByTestId('add-lamp').click();
-  await expect(page.getByTestId('preset-assembled')).toHaveAttribute('aria-pressed', 'false');
+  await expect(items(page)).toHaveCount(3);
+  await expect(page.getByTestId('preset-offset')).toHaveAttribute('aria-pressed', 'true');
 });
 
 test('библиотека сворачивается и помнит состояние после перезагрузки', async ({ page }) => {

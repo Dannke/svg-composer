@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { ASSETS, FORMATS, getAsset, PRESETS, type Kind } from '../src/core/catalog';
-import { layout, startScale, titleFreeArea } from '../src/core/layout';
+import { layout, titleFreeArea } from '../src/core/layout';
 
 const slugs = [...new Set(ASSETS.filter((a) => a.size === 'L' && a.kind === 'main').map((a) => a.slug))].slice(0, 5);
 const inputs = slugs.map((slug) => ({ slug, kind: 'main' as Kind }));
@@ -77,18 +77,6 @@ describe('укладка по эталону SVG-drop (телефон на кн�
     expect(offset(r, 'book', 'phone').dy).toBeCloseTo(-0.1499, 4);
     expect(Math.abs(second.cx - onBook.cx)).toBeGreaterThan(1);
   });
-});
-
-describe('стартовый масштаб для объектов из библиотеки', () => {
-  for (const f of FORMATS)
-    for (const size of ['S', 'L'] as const)
-      it(`${f.id} ${size}: любой объект влезает в холст`, () => {
-        const k = startScale(size, f);
-        for (const a of ASSETS.filter((x) => x.size === size)) {
-          expect(a.bbox.w * k, a.id).toBeLessThanOrEqual(f.w * 0.6 + 0.01);
-          expect(a.bbox.h * k, a.id).toBeLessThanOrEqual(f.h * 0.6 + 0.01);
-        }
-      });
 });
 
 describe('фоновые объекты (как в «Примерах композиций» Figma)', () => {

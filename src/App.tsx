@@ -2,7 +2,7 @@ import { memo, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'rea
 import { AnimatePresence, animate, motion, useReducedMotion, type AnimationPlaybackControls } from 'motion/react';
 import { AlertCircle, ArrowDown, ChevronDown, Eraser, Undo2, ArrowDownToLine, ArrowUp, ArrowUpToLine, Copy, Download, Loader2, Minus, Plus, Trash2 } from 'lucide-react';
 import { DECORS, FORMATS, OBJECTS, PRESETS, S_TO_L, SCHEMES, getAsset, type Format, type Kind, type Preset, type Size } from './core/catalog';
-import { layout, newUid, startScale, type LayoutInput } from './core/layout';
+import { layout, newUid, type LayoutInput } from './core/layout';
 import { matchNames } from './core/match';
 import { canvasColor, decorMarkup, itemMarkup, itemSize, itemTransform, renderSvg, type Composition, type Item } from './core/render';
 import { BODIES } from './bodies';
@@ -185,17 +185,12 @@ export function App() {
     say(`${listing(slugs, background)}${unknown.length ? ` · не распознано: ${unknown.join(', ')}` : ''}`);
   }
 
+  // объект из библиотеки сразу встраивается в композицию; первый объект включает «Собранно»
   function addObject(slug: string, kind: Kind) {
-    const item: Item = { uid: newUid(), slug, kind, cx: comp.format.w / 2, cy: comp.format.h / 2, rotation: 0 };
-    // на пустом холсте не вписываем объект во весь формат, иначе следующие (крупнее) не влезут;
-    // фоновый объект кладётся самым нижним слоем, позади главных
-    update((c) => ({
-      ...c,
-      scale: c.items.length ? c.scale : startScale(c.size, c.format),
-      items: kind === 'bg' ? [item, ...c.items] : [...c.items, item],
-    }));
-    setSelected(item.uid);
-    setArranged(false);
+    const p = comp.items.length ? preset : 'assembled';
+    setPreset(p);
+    // новый фоновый — самым нижним слоем
+    relayout(kind === 'bg' ? [{ slug, kind }, ...inputs()] : [...inputs(), { slug, kind }], p, comp, true);
   }
 
   const inputs = () => comp.items.map(({ slug, kind }) => ({ slug, kind }));
