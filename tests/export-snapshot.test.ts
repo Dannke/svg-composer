@@ -5,7 +5,7 @@ import { layout } from '../src/core/layout';
 import { renderSvg, svgBody, type Composition } from '../src/core/render';
 
 // Снимок экспорта: UI не должен менять ни байта в SVG. Обновлялся только при намеренной правке раскладки
-// (укладка телефона на книгу по эталону) — разметка объектов при этом совпала, менялись transform и порядок групп.
+// (укладка по эталону; фоновые объекты позади главных) — разметка объектов совпадала, менялись transform и порядок групп.
 const bodies = Object.fromEntries(ASSETS.map((a) => [a.file, svgBody(readFileSync(`assets/objects/${a.file}`, 'utf8'))]));
 
 function fixed(size: Size, schemeIdx: number, formatIdx: number): Composition {

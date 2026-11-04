@@ -33,17 +33,29 @@ export function wordMatches(word: string, term: string): boolean {
 
 const words = (s: string) => normalize(s).split(' ').filter((w) => w.length >= 3);
 
-/** Сценарий Б: названия объектов (с синонимами, словоформами, опечатками) → slug-и в порядке ввода. */
+/**
+ * Сценарий Б: названия объектов (с синонимами, словоформами, опечатками) → slug-и в порядке ввода.
+ * Слово «фон», «фоновый», «фоновая»… делает следующий найденный объект фоновым: «наушники, фоновые тюльпаны».
+ */
 export function matchNames(text: string, catalog: CatalogObject[]) {
   const slugs: string[] = [];
+  const background: string[] = [];
   const unknown: string[] = [];
+  let nextIsBg = false;
   for (const w of words(text)) {
+    if (/^(фон|фоне|фоном|фонов[а-я]*)$/.test(w)) {
+      nextIsBg = true;
+      continue;
+    }
     const hit = catalog.find((o) => o.synonyms.some((s) => wordMatches(w, normalize(s))));
-    if (hit) {
-      if (!slugs.includes(hit.slug)) slugs.push(hit.slug);
-    } else unknown.push(w);
+    if (!hit) {
+      unknown.push(w);
+      continue;
+    }
+    if (!slugs.includes(hit.slug) && !background.includes(hit.slug)) (nextIsBg ? background : slugs).push(hit.slug);
+    nextIsBg = false;
   }
-  return { slugs, unknown };
+  return { slugs, background, unknown };
 }
 
 /** Запасной режим сценария А: метафора → объекты по синонимам (вес 2) и смысловым тегам (вес 1). */

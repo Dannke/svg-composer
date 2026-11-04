@@ -103,6 +103,7 @@ button.icon { width: 32px; padding: 0; }
 .swatch { width: 20px; height: 14px; border-radius: 3px; box-shadow: inset 0 0 0 1px rgb(0 0 0 / .12); }
 
 /* Библиотека: плитки-иллюстрации на цвете схемы */
+.lib-kind { margin-bottom: 12px; }
 .library { display: grid; grid-template-columns: repeat(auto-fill, minmax(64px, 1fr)); gap: 8px; }
 .card { height: auto; flex-direction: column; justify-content: flex-start; gap: 0; padding: 4px 4px 6px; background: var(--surface); border-color: var(--hairline); }
 .card:hover { box-shadow: var(--shadow-1); border-color: var(--field-border); }

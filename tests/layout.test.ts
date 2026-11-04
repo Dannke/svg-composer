@@ -90,3 +90,50 @@ describe('стартовый масштаб для объектов из биб�
         }
       });
 });
+
+describe('фоновые объекты (как в «Примерах композиций» Figma)', () => {
+  const f = FORMATS[0];
+  const ins = (...xs: [string, Kind][]) => xs.map(([slug, kind]) => ({ slug, kind }));
+
+  it('фоновый — слоем позади, выше главных на 0.4 своей высоты, в том же масштабе; на холсте всё, кроме его верхней половины', () => {
+    const r = layout(ins(['headphones', 'main'], ['tulips', 'bg'], ['coin', 'main']), 'L', f, 'assembled', uid);
+    expect(r.items.map((i) => `${i.slug}-${i.kind}`)).toEqual(['tulips-bg', 'headphones-main', 'coin-main']);
+    const mains = box(r.items.filter((i) => i.kind === 'main'), r.scale);
+    const top = Math.min(...mains.map((b) => b.y0));
+    const [bg] = r.items;
+    const bgH = getAsset('tulips', 'L', 'bg').bbox.h * r.scale;
+    expect(bg.cy).toBeCloseTo(top - 0.4 * bgH, 6);
+    expect(bg.cy).toBeGreaterThanOrEqual(-0.01);
+    expect(bg.cy + bgH / 2).toBeLessThanOrEqual(f.h + 0.01);
+    for (const b of mains) {
+      expect(b.x0).toBeGreaterThanOrEqual(-0.01);
+      expect(b.y0).toBeGreaterThanOrEqual(-0.01);
+      expect(b.x1).toBeLessThanOrEqual(f.w + 0.01);
+      expect(b.y1).toBeLessThanOrEqual(f.h + 0.01);
+    }
+  });
+
+  it('главные пазлы ложатся на фоновую книгу (левая страница)', () => {
+    const r = layout(ins(['book', 'bg'], ['puzzle', 'main'], ['pen', 'main']), 'L', f, 'assembled', uid);
+    expect(r.items.map((i) => `${i.slug}-${i.kind}`)).toEqual(['book-bg', 'puzzle-main', 'pen-main']);
+    const [book, puzzle] = r.items;
+    const { w, h } = getAsset('book', 'L', 'bg').bbox;
+    expect((puzzle.cx - book.cx) / (w * r.scale)).toBeCloseTo(-0.1713, 4);
+    expect((puzzle.cy - book.cy) / (h * r.scale)).toBeCloseTo(0.0005, 4);
+  });
+
+  it('фоновый объект ни на что не кладётся; без главных фоновые встают в ряд', () => {
+    const r = layout(ins(['book', 'main'], ['phone', 'bg']), 'L', f, 'assembled', uid);
+    expect(r.items.map((i) => i.slug)).toEqual(['phone', 'book']);
+    const only = layout(ins(['lamp', 'bg'], ['wallet', 'bg']), 'L', f, 'assembled', uid);
+    for (const b of box(only.items, only.scale)) expect(b.y0).toBeGreaterThanOrEqual(-0.01);
+  });
+
+  it('«Под заголовок» с фоновым — по-прежнему «Собранно» × один коэффициент + сдвиг', () => {
+    const x = ins(['tulips', 'bg'], ['headphones', 'main'], ['lamp', 'main']);
+    const a = layout(x, 'L', FORMATS[1], 'assembled', uid);
+    const t = layout(x, 'L', FORMATS[1], 'underTitle', uid);
+    const k = t.scale / a.scale;
+    for (let i = 1; i < a.items.length; i++) expect(t.items[i].cx - t.items[0].cx).toBeCloseTo((a.items[i].cx - a.items[0].cx) * k, 6);
+  });
+});

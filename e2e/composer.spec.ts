@@ -114,3 +114,27 @@ test('библиотека сворачивается и помнит состо
   await page.waitForTimeout(400);
   await page.screenshot({ path: 'test-results/shots/library-collapsed.png', clip: { x: 0, y: 0, width: 330, height: 900 } });
 });
+
+test('фоновые объекты: «фоновые тюльпаны» позади главных, вкладка «Фоновые» в библиотеке, экспорт', async ({ page }) => {
+  await page.goto('/');
+  await page.getByTestId('names').fill('наушники, фоновые тюльпаны');
+  await page.getByTestId('names-go').click();
+  await expect(items(page)).toHaveCount(2);
+  await expect(page.getByTestId('status')).toContainText('фон: Тюльпаны в вазе');
+  // фоновый — первым в DOM, то есть нижним слоем
+  expect(await items(page).evaluateAll((els) => els.map((e) => `${e.getAttribute('data-slug')}-${e.getAttribute('data-kind')}`))).toEqual(['tulips-bg', 'headphones-main']);
+  await page.waitForTimeout(500);
+  await page.getByTestId('canvas').screenshot({ path: 'test-results/shots/bg-tulips-headphones.png' });
+
+  await page.getByTestId('lib-kind-bg').click();
+  await page.getByTestId('add-lamp').click();
+  await expect(items(page)).toHaveCount(3);
+  expect(await items(page).first().getAttribute('data-slug')).toBe('lamp');
+  expect(await items(page).first().getAttribute('data-kind')).toBe('bg');
+
+  const svg = await exportSvg(page);
+  expect(svg).not.toMatch(/<image\b|data:image|<foreignObject/);
+  // фоновые объекты используют только цвета фона схемы (сиреневая: bg1 #d7cdf5, bg3 #7864d7)
+  const bgGroup = svg.split('<g id="tulips"')[1].split('</g>\n<g id=')[0];
+  for (const c of new Set(bgGroup.match(/#[0-9a-f]{6}/g))) expect(['#d7cdf5', '#aa9bf0', '#7864d7', '#181817']).toContain(c);
+});

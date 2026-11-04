@@ -1,8 +1,11 @@
-import { OBJECTS, PRESETS, SLUGS, type Preset } from '../core/catalog';
+import { getAsset, OBJECTS, PRESETS, SLUGS, type Preset } from '../core/catalog';
 import { matchTags } from '../core/match';
 
 export interface ComposeResult {
+  /** главные (цветные) объекты */
   slugs: string[];
+  /** фоновые (монохромные) объекты — позади главных, 0–1 шт., как в «Примерах композиций» Figma */
+  background: string[];
   preset: Preset;
   source: 'llm' | 'keywords' | 'default';
   model?: string;
@@ -25,12 +28,14 @@ const SYSTEM = `Ты подбираешь готовые иллюстратив�
 Доступные объекты (id — название — смыслы):
 ${OBJECTS.map((o) => `${o.slug} — ${o.nameRu} — ${o.tags.slice(0, 8).join(', ')}`).join('\n')}
 Пресеты раскладки: ${PRESETS.map((p) => `${p.id} (${p.name})`).join(', ')}.
-Выбери от 2 до 5 объектов, которые вместе лучше всего передают смысл. Используй только id из списка.
-Ответь строго одним JSON-объектом без пояснений вокруг:
-{"objects": ["id", ...], "preset": "assembled", "reason": "одно короткое предложение"}`;
+Выбери от 2 до 5 главных объектов, которые вместе лучше всего передают смысл.
+Можно добавить 0 или 1 фоновый объект (background): крупный монохромный объект позади главных, задаёт контекст
+(например, ваза с тюльпанами за наушниками или лампа за кошельком). Фоновый не повторяет главные.
+Используй только id из списка. Ответь строго одним JSON-объектом без пояснений вокруг:
+{"objects": ["id", ...], "background": [] или ["id"], "preset": "assembled", "reason": "одно короткое предложение"}`;
 
-/** Строгая проверка ответа модели: только id из каталога, без повторов, 1–6 шт. */
-export function parseLlmAnswer(text: string): Pick<ComposeResult, 'slugs' | 'preset' | 'reason'> | null {
+/** Строгая проверка ответа модели: только id из каталога, без повторов; главных 1–6, фоновый — не из главных, максимум 1. */
+export function parseLlmAnswer(text: string): Pick<ComposeResult, 'slugs' | 'background' | 'preset' | 'reason'> | null {
   const m = text.match(/\{[\s\S]*\}/);
   if (!m) return null;
   let data: unknown;
@@ -40,15 +45,29 @@ export function parseLlmAnswer(text: string): Pick<ComposeResult, 'slugs' | 'pre
     return null;
   }
   if (!data || typeof data !== 'object') return null;
-  const { objects, preset, reason } = data as Record<string, unknown>;
+  const { objects, background, preset, reason } = data as Record<string, unknown>;
   if (!Array.isArray(objects)) return null;
   const slugs = [...new Set(objects.filter((x): x is string => typeof x === 'string' && SLUGS.has(x)))].slice(0, 6);
   if (!slugs.length) return null;
+  const bg = Array.isArray(background) ? background.filter((x): x is string => typeof x === 'string' && SLUGS.has(x) && !slugs.includes(x)) : [];
   return {
     slugs,
+    background: bg.slice(0, 1),
     preset: PRESETS.some((p) => p.id === preset) ? (preset as Preset) : 'assembled',
     reason: typeof reason === 'string' ? reason.slice(0, 300) : undefined,
   };
+}
+
+/**
+ * Запасной режим: при 3+ совпадениях фоновым становится самый крупный объект (по bbox из Figma),
+ * кроме лучшего совпадения — в примерах Figma фоновыми стоят крупные: тюльпаны, лампа, книга. Изменяет slugs.
+ */
+function fallbackBackground(slugs: string[]): string[] {
+  if (slugs.length < 3) return [];
+  const area = (s: string) => getAsset(s, 'L', 'bg').bbox.w * getAsset(s, 'L', 'bg').bbox.h;
+  const bg = slugs.slice(1).reduce((a, b) => (area(b) > area(a) ? b : a));
+  slugs.splice(slugs.indexOf(bg), 1);
+  return [bg];
 }
 
 const cache = new Map<string, ComposeResult>();
@@ -115,7 +134,9 @@ export async function compose(query: string, deps: Deps = {}): Promise<ComposeRe
   }
   if (!result) {
     const slugs = matchTags(query, OBJECTS);
-    result = slugs.length ? { slugs, preset: 'assembled', source: 'keywords' } : { slugs: DEFAULT_SET, preset: 'assembled', source: 'default' };
+    result = slugs.length
+      ? { slugs, background: fallbackBackground(slugs), preset: 'assembled', source: 'keywords' }
+      : { slugs: DEFAULT_SET, background: [], preset: 'assembled', source: 'default' };
   }
   // запасной ответ при сбое LLM не кэшируем — следующая попытка может пройти
   if (result.source === 'llm' || !deps.apiKey) {

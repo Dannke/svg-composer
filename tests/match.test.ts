@@ -15,6 +15,11 @@ describe('сценарий Б: разбор названий', () => {
     expect(r.slugs).toEqual(['pen']);
     expect(r.unknown).toEqual(['самолет']);
   });
+  it('«фон», «фоновый», «фоновые» делают следующий объект фоновым', () => {
+    expect(matchNames('наушники, фоновые тюльпаны', OBJECTS)).toMatchObject({ slugs: ['headphones'], background: ['tulips'], unknown: [] });
+    expect(matchNames('фон: лампа; кошелёк и монета', OBJECTS)).toMatchObject({ slugs: ['wallet', 'coin'], background: ['lamp'] });
+    expect(matchNames('фоновая книга, пазлы, ручка, книга', OBJECTS)).toMatchObject({ slugs: ['puzzle', 'pen'], background: ['book'] });
+  });
   it('нет ложных совпадений между похожими словами', () => {
     expect(wordMatches('телевизор', 'телефон')).toBe(false);
     expect(wordMatches('папка', 'пазл')).toBe(false);

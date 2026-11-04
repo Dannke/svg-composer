@@ -10,7 +10,7 @@ const bodies = Object.fromEntries(ASSETS.map((a) => [a.file, svgBody(readFileSyn
 
 const examples: { file: string; scenario: 'А' | 'Б'; query: string; format: string; size: Size; scheme: string; preset?: Preset }[] = [
   { file: '01-finance-peach-1200x630.svg', scenario: 'А', query: 'Как накопить на мечту: деньги, бюджет и идеи для экономии', format: '1200x630', size: 'L', scheme: 'peach' },
-  { file: '02-study-lilac-1000x1000.svg', scenario: 'Б', query: 'книга, телефон, пазлы, наушники, лампа', format: '1000x1000', size: 'L', scheme: 'lilac', preset: 'offset' },
+  { file: '02-study-lilac-1000x1000.svg', scenario: 'Б', query: 'фоновые тюльпаны, книга, телефон, пазлы, наушники', format: '1000x1000', size: 'L', scheme: 'lilac', preset: 'offset' },
   { file: '03-spring-teal-800x1200.svg', scenario: 'А', query: 'Весенний вечер дома: цветы, музыка и открытка маме', format: '800x1200', size: 'S', scheme: 'teal', preset: 'underTitle' },
 ];
 
@@ -18,18 +18,21 @@ const lines = ['# Примеры композиций', '', 'Сгенериро�
 for (const ex of examples) {
   const format = FORMATS.find((f) => f.id === ex.format)!;
   let slugs: string[];
+  let background: string[];
   let preset = ex.preset ?? 'assembled';
   let note = '';
   if (ex.scenario === 'А') {
     const r = await compose(ex.query, { apiKey: process.env.OPENROUTER_API_KEY });
     slugs = r.slugs;
+    background = r.background;
     preset = ex.preset ?? r.preset;
     note = r.source === 'llm' ? `LLM ${r.model}` : 'запасной режим: поиск по смысловым тегам';
   } else {
-    slugs = matchNames(ex.query, OBJECTS).slugs;
+    ({ slugs, background } = matchNames(ex.query, OBJECTS));
     note = 'разбор названий';
   }
-  const { scale, items } = layout(slugs.map((slug) => ({ slug, kind: 'main' as Kind })), ex.size, format, preset, () => '');
+  const inputs = [...slugs.map((slug) => ({ slug, kind: 'main' as Kind })), ...background.map((slug) => ({ slug, kind: 'bg' as Kind }))];
+  const { scale, items } = layout(inputs, ex.size, format, preset, () => '');
   writeFileSync(`examples/${ex.file}`, renderSvg({ format, size: ex.size, scheme: ex.scheme, scale, items }, bodies));
   lines.push(
     `## ${ex.file}`,
@@ -37,9 +40,9 @@ for (const ex of examples) {
     `![](${ex.file})`,
     '',
     `- Сценарий ${ex.scenario}: «${ex.query}» (${note})`,
-    `- Объекты: ${slugs.join(', ')} · пресет ${preset} · ${ex.format} · размер ${ex.size} · схема ${ex.scheme}`,
+    `- Объекты: ${slugs.join(', ')}${background.length ? ` · фоновые: ${background.join(', ')}` : ''} · пресет ${preset} · ${ex.format} · размер ${ex.size} · схема ${ex.scheme}`,
     '',
   );
-  console.log(ex.file, slugs.join(','), preset);
+  console.log(ex.file, slugs.join(','), 'bg:', background.join(','), preset);
 }
 writeFileSync('examples/README.md', lines.join('\n'));

@@ -62,12 +62,19 @@ const ItemLayer = memo(function ItemLayer(p: {
   );
 });
 
-/** Миниатюра для библиотеки: настоящий SVG объекта (S, главный) в текущей схеме. */
-const Thumb = memo(function Thumb({ slug, scheme }: { slug: string; scheme: string }) {
-  const { w, h } = getAsset(slug, 'S', 'main').bbox;
-  const html = useMemo(() => itemMarkup({ slug, kind: 'main' } as Item, { size: 'S', scheme }, BODIES, `t-${slug}`), [slug, scheme]);
+/** Миниатюра для библиотеки: настоящий SVG объекта (размер S) нужного вида в текущей схеме. */
+const Thumb = memo(function Thumb({ slug, kind, scheme }: { slug: string; kind: Kind; scheme: string }) {
+  const { w, h } = getAsset(slug, 'S', kind).bbox;
+  const html = useMemo(() => itemMarkup({ slug, kind } as Item, { size: 'S', scheme }, BODIES, `t-${slug}-${kind}`), [slug, kind, scheme]);
   return <svg viewBox={`0 0 ${w} ${h}`} fill="none" aria-hidden="true" dangerouslySetInnerHTML={{ __html: html }} />;
 });
+
+const withBackground = (slugs: string[], background: string[]): LayoutInput[] => [
+  ...slugs.map((slug) => ({ slug, kind: 'main' as Kind })),
+  ...background.map((slug) => ({ slug, kind: 'bg' as Kind })),
+];
+const listing = (slugs: string[], background: string[]) =>
+  [slugs.map(nameOf).join(', '), background.length ? `фон: ${background.map(nameOf).join(', ')}` : ''].filter(Boolean).join(' · ');
 
 export function App() {
   const [comp, setComp] = useState<Composition>({ format: FORMATS[1], size: 'L', scheme: SCHEMES[0].id, scale: 1, items: [] });
@@ -80,6 +87,7 @@ export function App() {
   const [status, setStatus] = useState('');
   const [error, setError] = useState(false);
   const [busy, setBusy] = useState(false);
+  const [libKind, setLibKind] = useState<Kind>('main');
   // свёрнута ли библиотека — помним между визитами; без доступа к localStorage просто открыта
   const [libOpen, setLibOpen] = useState(() => {
     try {
@@ -140,12 +148,13 @@ export function App() {
         body: JSON.stringify({ query: metaphor }),
       });
       if (!res.ok) throw new Error(String(res.status));
-      const r = (await res.json()) as { slugs: string[]; preset: Preset; source: string; model?: string; reason?: string };
+      const r = (await res.json()) as { slugs: string[]; background?: string[]; preset: Preset; source: string; model?: string; reason?: string };
+      const background = r.background ?? [];
       setPreset(r.preset);
-      relayout(r.slugs.map((slug) => ({ slug, kind: 'main' as Kind })), r.preset);
+      relayout(withBackground(r.slugs, background), r.preset);
       const how =
         r.source === 'llm' ? `LLM (${r.model})` : r.source === 'keywords' ? 'поиск по ключевым словам (LLM недоступна)' : 'базовый набор: совпадений не найдено';
-      say(`${r.slugs.map(nameOf).join(', ')} — ${how}${r.reason ? `. ${r.reason}` : ''}`);
+      say(`${listing(r.slugs, background)} — ${how}${r.reason ? `. ${r.reason}` : ''}`);
     } catch (e) {
       say(`Ошибка запроса: ${(e as Error).message}`, true);
     } finally {
@@ -154,16 +163,21 @@ export function App() {
   }
 
   function fromNames() {
-    const { slugs, unknown } = matchNames(names, OBJECTS);
-    if (!slugs.length) return say(`Не нашёл объектов${unknown.length ? `: ${unknown.join(', ')}` : ''}`, true);
-    relayout(slugs.map((slug) => ({ slug, kind: 'main' as Kind })));
-    say(`${slugs.map(nameOf).join(', ')}${unknown.length ? ` · не распознано: ${unknown.join(', ')}` : ''}`);
+    const { slugs, background, unknown } = matchNames(names, OBJECTS);
+    if (!slugs.length && !background.length) return say(`Не нашёл объектов${unknown.length ? `: ${unknown.join(', ')}` : ''}`, true);
+    relayout(withBackground(slugs, background));
+    say(`${listing(slugs, background)}${unknown.length ? ` · не распознано: ${unknown.join(', ')}` : ''}`);
   }
 
-  function addObject(slug: string) {
-    const item: Item = { uid: newUid(), slug, kind: 'main', cx: comp.format.w / 2, cy: comp.format.h / 2, rotation: 0 };
-    // на пустом холсте не вписываем объект во весь формат, иначе следующие (крупнее) не влезут
-    update((c) => ({ ...c, scale: c.items.length ? c.scale : startScale(c.size, c.format), items: [...c.items, item] }));
+  function addObject(slug: string, kind: Kind) {
+    const item: Item = { uid: newUid(), slug, kind, cx: comp.format.w / 2, cy: comp.format.h / 2, rotation: 0 };
+    // на пустом холсте не вписываем объект во весь формат, иначе следующие (крупнее) не влезут;
+    // фоновый объект кладётся самым нижним слоем, позади главных
+    update((c) => ({
+      ...c,
+      scale: c.items.length ? c.scale : startScale(c.size, c.format),
+      items: kind === 'bg' ? [item, ...c.items] : [...c.items, item],
+    }));
     setSelected(item.uid);
     setArranged(false);
   }
@@ -290,10 +304,14 @@ export function App() {
             </button>
           </h2>
           <div className="collapsible" id="library" inert={!libOpen}>
+            <div className="segmented lib-kind" role="group" aria-label="Вид объектов в библиотеке">
+              <button data-testid="lib-kind-main" className={libKind === 'main' ? 'on' : ''} aria-pressed={libKind === 'main'} onClick={() => setLibKind('main')}>Главные</button>
+              <button data-testid="lib-kind-bg" className={libKind === 'bg' ? 'on' : ''} aria-pressed={libKind === 'bg'} onClick={() => setLibKind('bg')}>Фоновые</button>
+            </div>
             <div className="library">
               {OBJECTS.map((o) => (
-                <button key={o.slug} className="card" data-testid={`add-${o.slug}`} onClick={() => addObject(o.slug)} title={`Добавить на холст: ${o.nameRu}`}>
-                  <span className="thumb"><Thumb slug={o.slug} scheme={comp.scheme} /></span>
+                <button key={o.slug} className="card" data-testid={`add-${o.slug}`} onClick={() => addObject(o.slug, libKind)} title={`Добавить на холст: ${o.nameRu}${libKind === 'bg' ? ' (фоновый)' : ''}`}>
+                  <span className="thumb"><Thumb slug={o.slug} kind={libKind} scheme={comp.scheme} /></span>
                   <span className="card-name">{o.nameRu}</span>
                 </button>
               ))}

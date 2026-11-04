@@ -5,7 +5,12 @@ const answer = (content: string) => new Response(JSON.stringify({ choices: [{ me
 
 describe('валидация ответа LLM', () => {
   it('принимает только id из каталога', () => {
-    expect(parseLlmAnswer('Вот: {"objects":["lamp","rocket","lamp","book"],"preset":"offset"}')).toEqual({ slugs: ['lamp', 'book'], preset: 'offset', reason: undefined });
+    expect(parseLlmAnswer('Вот: {"objects":["lamp","rocket","lamp","book"],"preset":"offset"}')).toEqual({ slugs: ['lamp', 'book'], background: [], preset: 'offset', reason: undefined });
+  });
+  it('фоновый объект: только из каталога, не из главных, максимум один', () => {
+    expect(parseLlmAnswer('{"objects":["headphones"],"background":["tulips","lamp"]}')?.background).toEqual(['tulips']);
+    expect(parseLlmAnswer('{"objects":["headphones"],"background":["headphones","rocket"]}')?.background).toEqual([]);
+    expect(parseLlmAnswer('{"objects":["headphones"],"background":"tulips"}')?.background).toEqual([]);
   });
   it('отклоняет мусор и неизвестные id; неверный пресет → assembled', () => {
     expect(parseLlmAnswer('не json')).toBeNull();
@@ -51,6 +56,13 @@ describe('compose: модели, запасной режим, кэш', () => {
     const r = await compose('экономия денег', { apiKey: 'k', models: ['a:free'], fetch: f });
     expect(r.source).toBe('keywords');
     expect(r.slugs).toContain('coin');
+  });
+  it('запасной режим: при 3+ совпадениях самый крупный (кроме лучшего) уходит в фоновые', async () => {
+    const r = await compose('Весенний вечер дома: цветы, музыка и открытка маме');
+    expect(r.source).toBe('keywords');
+    expect(r.background).toHaveLength(1);
+    expect(r.slugs).not.toContain(r.background[0]);
+    expect(r.slugs.length).toBeGreaterThanOrEqual(2);
   });
   it('без ключа LLM не вызывается; ответ кэшируется', async () => {
     const f = vi.fn();
