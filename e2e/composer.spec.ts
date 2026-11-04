@@ -23,8 +23,8 @@ test('сценарий А: метафора → объекты (LLM, локал�
   await page.goto('/');
   await page.getByTestId('metaphor').fill('Как накопить деньги и не тратить лишнего на покупки');
   await page.getByTestId('metaphor-go').click();
-  // живая LLM на проде отвечает до 15 с (общий таймаут сервера)
-  await expect(page.getByTestId('status')).toContainText(/ключевым словам|LLM/, { timeout: 20_000 });
+  // живая LLM на проде отвечает до 5 с (потолок сервера), с запасом на сеть
+  await expect(page.getByTestId('status')).toContainText(/ключевым словам|LLM/, { timeout: 10_000 });
   await expect(items(page).first()).toBeVisible();
   const slugs = await items(page).evaluateAll((els) => els.map((e) => e.getAttribute('data-slug')));
   expect(slugs).toEqual(expect.arrayContaining(['coin', 'wallet']));

@@ -12,17 +12,20 @@ export interface ComposeResult {
   reason?: string;
 }
 
-// доступность бесплатных моделей меняется от запроса к запросу (429/503/таймауты); первой — самая стабильная в замерах
+// по замерам scripts/bench-llm.ts (2026-11-04, без размышлений): Nemotron 0.7–1.2 с, Dots 1.8–2.7 с, все ответы валидны;
+// Gemma часто 429. Dots вторым — другой провайдер на случай сбоя у Nvidia
 export const DEFAULT_MODELS = [
-  'nvidia/nemotron-3.5-super-vl:free',
-  'google/gemma-4-31b-it:free',
+  'nvidia/nemotron-3.5-lightning:free',
   'dots-studio/dots-3-note-preview:free',
-  'google/gemma-4-26b-a4b-it:free',
+  'nvidia/nemotron-3.5-super-vl:free',
+  'nvidia/nemotron-3-nano-omni-30b-a3b-reasoning:free',
+  'google/gemma-4-31b-it:free',
 ];
 const DEFAULT_SET = ['book', 'lamp', 'headphones'];
-const TIMEOUT_MS = 15_000;
+/** Потолок ожидания LLM: дольше 5 с пользователь не ждёт — сразу запасной режим. */
+const TIMEOUT_MS = 5_000;
 /** Сколько ждать ответа модели, прежде чем подключить следующую (при ошибке — подключается сразу). */
-export const HEDGE_MS = 6_000;
+export const HEDGE_MS = 2_000;
 
 const SYSTEM = `Ты подбираешь готовые иллюстративные объекты под метафору или заголовок статьи.
 Доступные объекты (id — название — смыслы):
@@ -33,6 +36,22 @@ ${OBJECTS.map((o) => `${o.slug} — ${o.nameRu} — ${o.tags.slice(0, 8).join(',
 (например, ваза с тюльпанами за наушниками или лампа за кошельком). Фоновый не повторяет главные.
 Используй только id из списка. Ответь строго одним JSON-объектом без пояснений вокруг:
 {"objects": ["id", ...], "background": [] или ["id"], "preset": "assembled", "reason": "одно короткое предложение"}`;
+
+/** Тело запроса к OpenRouter — общее для сервиса и scripts/bench-llm.ts. */
+export function llmRequest(model: string, query: string, extra: Record<string, unknown> = {}) {
+  return {
+    model,
+    temperature: 0.2,
+    // задача простая (выбрать 2–5 id): «размышления» модели только добавляют секунды
+    max_tokens: 200,
+    reasoning: { enabled: false },
+    messages: [
+      { role: 'system', content: SYSTEM },
+      { role: 'user', content: query.slice(0, 500) },
+    ],
+    ...extra,
+  };
+}
 
 /** Строгая проверка ответа модели: только id из каталога, без повторов; главных 1–6, фоновый — не из главных, максимум 1. */
 export function parseLlmAnswer(text: string): Pick<ComposeResult, 'slugs' | 'background' | 'preset' | 'reason'> | null {
@@ -92,14 +111,7 @@ export async function compose(query: string, deps: Deps = {}): Promise<ComposeRe
       const res = await doFetch('https://openrouter.ai/api/v1/chat/completions', {
         method: 'POST',
         headers: { Authorization: `Bearer ${deps.apiKey}`, 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          model,
-          temperature: 0.2,
-          messages: [
-            { role: 'system', content: SYSTEM },
-            { role: 'user', content: query.slice(0, 500) },
-          ],
-        }),
+        body: JSON.stringify(llmRequest(model, query)),
         signal,
       });
       if (!res.ok) throw new Error(`${model}: ${res.status}`);
