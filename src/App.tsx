@@ -296,11 +296,12 @@ export function App() {
           <div className="field">
             <label htmlFor="metaphor"><span className="step">А</span>Метафора или заголовок</label>
             <textarea id="metaphor" data-testid="metaphor" value={metaphor} onChange={(e) => setMetaphor(e.target.value)} placeholder="Например: «Как накопить на мечту»" rows={2} />
-            <button data-testid="metaphor-go" className="secondary" disabled={busy} aria-busy={busy} onClick={fromMetaphor}>
+            <button data-testid="metaphor-go" className={comp.items.length ? 'secondary' : 'primary'} disabled={busy} aria-busy={busy} onClick={fromMetaphor}>
               {busy && <Loader2 className="spin" size={16} aria-hidden="true" />}
               {busy ? 'Подбираю…' : 'Собрать по смыслу'}
             </button>
           </div>
+          <p className="or" aria-hidden="true">или</p>
           <div className="field">
             <label htmlFor="names"><span className="step">Б</span>Названия объектов</label>
             <input id="names" data-testid="names" value={names} onChange={(e) => setNames(e.target.value)} onKeyDown={(e) => e.key === 'Enter' && fromNames()} placeholder="лампа, наушники, книга" />
@@ -391,7 +392,7 @@ export function App() {
             </div>
           </div>
           <div className="tool">
-            <span className="tool-label" id="l-size">Размер</span>
+            <span className="tool-label" id="l-size">Размер объектов</span>
             <div className="segmented" role="group" aria-labelledby="l-size">
               {(['S', 'L'] as Size[]).map((s) => (
                 <button key={s} data-testid={`size-${s}`} className={comp.size === s ? 'on' : ''} aria-pressed={comp.size === s} onClick={() => setSize(s)}>{s}</button>
@@ -438,14 +439,14 @@ export function App() {
           <div className="tool">
             <span className="tool-label" id="l-zoom">Масштаб</span>
             <div className="segmented" role="group" aria-labelledby="l-zoom">
-              <button className="icon" onClick={() => zoom(1 / 1.1)} title="Уменьшить всю композицию" aria-label="Уменьшить всю композицию"><Minus size={16} /></button>
-              <button className="icon" onClick={() => zoom(1.1)} title="Увеличить всю композицию" aria-label="Увеличить всю композицию"><Plus size={16} /></button>
+              <button className="icon" disabled={!comp.items.length} onClick={() => zoom(1 / 1.1)} title="Уменьшить всю композицию" aria-label="Уменьшить всю композицию"><Minus size={16} /></button>
+              <button className="icon" disabled={!comp.items.length} onClick={() => zoom(1.1)} title="Увеличить всю композицию" aria-label="Увеличить всю композицию"><Plus size={16} /></button>
             </div>
           </div>
           <button data-testid="clear" className="secondary clear" disabled={!comp.items.length} onClick={clearCanvas} title="Убрать все объекты с холста">
             <Eraser size={16} aria-hidden="true" />Очистить
           </button>
-          <button data-testid="export" className="primary" disabled={!comp.items.length} onClick={exportSvg}>
+          <button data-testid="export" className={comp.items.length ? 'primary' : 'secondary'} disabled={!comp.items.length} onClick={exportSvg}>
             <Download size={16} aria-hidden="true" />Скачать SVG
           </button>
         </div>
