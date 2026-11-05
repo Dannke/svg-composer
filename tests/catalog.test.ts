@@ -1,6 +1,6 @@
 import { readFileSync } from 'node:fs';
 import { describe, expect, it } from 'vitest';
-import { ASSETS, CANVAS_ROLE, OBJECTS, ROLES, SCHEMES } from '../src/core/catalog';
+import { ASSETS, CANVAS_ROLE, OBJECTS, ROLES, S_TO_L, SCHEMES, getAsset } from '../src/core/catalog';
 
 describe('каталог объектов (manifest.json)', () => {
   it('10 объектов × 2 вида × 2 размера', () => {
@@ -18,6 +18,15 @@ describe('каталог объектов (manifest.json)', () => {
       expect(svg).not.toMatch(/<image\b|data:image/);
       expect(a.bbox.w).toBeGreaterThan(0);
       expect(a.bbox.h).toBeGreaterThan(0);
+    }
+  });
+
+  it('S нарисованы ≈1:2 к L (S_TO_L): у монеты и тюльпанов в Figma 1,87 и 1,82, у остальных 2,0', () => {
+    for (const a of ASSETS.filter((x) => x.size === 'L')) {
+      const s = getAsset(a.slug, 'S', a.kind);
+      const r = a.bbox.w / s.bbox.w;
+      expect(r, a.id).toBeGreaterThan(['coin', 'tulips'].includes(a.slug) ? 1.8 : 1.9);
+      expect(r, a.id).toBeLessThan(S_TO_L + 0.1);
     }
   });
 

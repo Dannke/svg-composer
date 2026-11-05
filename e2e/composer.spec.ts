@@ -48,6 +48,7 @@ test('S/L, все цветовые схемы, пресеты, правка об
     await expect(page.locator('[data-testid=canvas] > rect').first()).toHaveAttribute('fill', bg);
     for (const preset of ['assembled', 'offset', 'underTitle']) {
       await page.getByTestId(`preset-${preset}`).click();
+      await expect(page.getByTestId(`preset-${preset}`)).toHaveAttribute('aria-pressed', 'true');
       await page.waitForTimeout(500); // переход между пресетами анимирован
       await page.getByTestId('canvas').screenshot({ path: `test-results/shots/${scheme}-${preset}.png` });
     }
@@ -152,11 +153,17 @@ test('декоративный фон: переключение и экспор�
   for (const d of ['confetti', 'blob']) {
     await page.getByTestId(`decor-${d}`).click();
     for (const f of ['1000x1000', '1200x630', '800x1200']) {
+      const [w, h] = f.split('x');
       await page.getByTestId(`format-${f}`).click();
+      await expect(page.getByTestId(`format-${f}`)).toHaveAttribute('aria-pressed', 'true');
+      await expect(page.getByTestId('canvas')).toHaveAttribute('viewBox', `0 0 ${w} ${h}`);
       await page.waitForTimeout(500);
       await page.getByTestId('canvas').screenshot({ path: `test-results/shots/decor-${d}-${f}.png` });
+      const svg = await exportSvg(page);
+      expect(svg).toContain(`width="${w}" height="${h}" viewBox="0 0 ${w} ${h}"`);
+      expect(svg).toMatch(/<g id="decor">[\s\S]*<path/);
+      expect(svg.match(/<g id="(headphones|coin|tulips)"/g)).toHaveLength(3);
     }
-    expect(await exportSvg(page)).toMatch(/<g id="decor">[\s\S]*<path/);
   }
   await page.getByTestId('decor-none').click();
   expect(await exportSvg(page)).not.toContain('id="decor"');
