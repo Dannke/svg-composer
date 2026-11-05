@@ -43,7 +43,7 @@ describe('декоративные фоны', () => {
   );
   for (const s of SCHEMES)
     for (const d of ['confetti', 'blob'] as const)
-      it(`${d} · ${s.name}: под объектами, вектор, только цвета фона схемы (+ белый, как в Figma)`, () => {
+      it(`${d} · ${s.name}: под объектами, вектор, только цвета фона схемы`, () => {
         const svg = renderSvg({ ...comp(s.id), decor: d }, { ...bodies, ...decor });
         const doc = new DOMParser().parseFromString(svg, 'image/svg+xml');
         expect(doc.querySelector('parsererror')).toBeNull();
@@ -51,7 +51,7 @@ describe('декоративные фоны', () => {
         expect(g.previousElementSibling!.id).toBe('background');
         expect(g.querySelector('path')).not.toBeNull();
         expect(g.outerHTML).not.toMatch(/<image\b|data:image/);
-        const allowed = [s.colors.bg1, s.colors.bg2, s.colors.bg3, s.colors.ink, '#ffffff'];
+        const allowed = [s.colors.bg1, s.colors.bg2, s.colors.bg3, s.colors.ink];
         for (const c of new Set(g.outerHTML.match(/#[0-9a-f]{6}\b/g))) expect(allowed, c).toContain(c);
       });
 });

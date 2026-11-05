@@ -59,7 +59,7 @@ function stripGroup(svg, name) {
 
 const decorDir = new URL('assets/decor/', root);
 await mkdir(decorDir, { recursive: true });
-const allowed = new Set(Object.entries(schemes.roles).filter(([, g]) => g === 'background').map(([r]) => r).concat('white'));
+const bgHex = new Set(Object.entries(source).filter(([r]) => schemes.roles[r] === 'background').map(([, hex]) => hex));
 for (const [style, formats] of Object.entries(nodes.decor.frames)) {
   for (const format of Object.keys(formats)) {
     const file = `decor-${style}-${format}.svg`;
@@ -69,10 +69,15 @@ for (const [style, formats] of Object.entries(nodes.decor.frames)) {
     const [w, h] = format.split('x');
     svg = svg.replace(new RegExp(`<rect width="${w}" height="${h}" fill="#[0-9A-Fa-f]{6}"/>`), ''); // фон кадра рисует сам холст
     const n = normalizeSvg(svg, roleByHex);
-    // защита: если объект не вырезался, в декоре окажутся цвета объектов (кроме белого) или чёрный контур
-    const bad = [...n.fixedColors, ...Object.keys(n.colorRoles).filter((r) => !allowed.has(r))];
+    // ТЗ: цвета объектов в фонах нельзя, а белый — цвет объектов. Белые фигуры (кусочек конфетти) убираются;
+    // в <defs> белый — только заливка клипа, она не рисуется и тоже снимается
+    const at = n.svg.includes('<defs>') ? n.svg.indexOf('<defs>') : n.svg.length;
+    const art = n.svg.slice(0, at).replace(/<(?:path|rect|circle|ellipse|polygon)\b[^>]*\bfill="#ffffff"[^>]*\/>\n?/g, '');
+    n.svg = art + n.svg.slice(at).replace(/ fill="#ffffff"/g, '');
+    // защита: если объект не вырезался, в декоре окажутся цвета объектов или чёрный контур
+    const bad = [...new Set(n.svg.match(/#[0-9a-f]{6}\b/g))].filter((c) => !bgHex.has(c));
     if (bad.length) throw new Error(`${file}: в декоре цвета не из фона: ${bad.join(', ')}`);
     await writeFile(new URL(file, decorDir), n.svg);
-    console.log('decor', file, JSON.stringify(n.colorRoles));
+    console.log('decor', file, [...new Set(n.svg.match(/#[0-9a-f]{6}\b/g))].map((c) => roleByHex[c]).join(','));
   }
 }
