@@ -7,7 +7,7 @@
 ![](01-finance-peach-1200x630.svg)
 
 - Сценарий А: «Как накопить на мечту: деньги, бюджет и идеи для экономии» (LLM nvidia/nemotron-3.5-lightning:free)
-- Объекты: coin, wallet, lamp · фоновые: tulips · пресет assembled · 1200x630 · размер L · схема peach · фон пятно
+- Объекты: coin, wallet, folder, book · фоновые: tulips · пресет assembled · 1200x630 · размер L · схема peach · фон пятно
 
 ## 02-study-lilac-1000x1000.svg
 

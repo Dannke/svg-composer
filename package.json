@@ -13,6 +13,7 @@
     "test": "vitest run",
     "e2e": "playwright test",
     "examples": "vite-node scripts/make-examples.ts",
+    "demo": "node scripts/record-demo.mjs",
     "deploy": "npm run build && wrangler deploy"
   },
   "dependencies": {
