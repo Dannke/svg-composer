@@ -1,9 +1,10 @@
 import { memo, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import { AnimatePresence, animate, motion, useReducedMotion, type AnimationPlaybackControls } from 'motion/react';
-import { AlertCircle, ArrowDown, ChevronDown, Eraser, Undo2, ArrowDownToLine, ArrowUp, ArrowUpToLine, Copy, Download, Loader2, Minus, Plus, Trash2 } from 'lucide-react';
+import { AlertCircle, ArrowDown, ChevronDown, Eraser, Undo2, ArrowDownToLine, ArrowUp, ArrowUpToLine, Copy, Download, Loader2, Minus, Plus, Trash2, Upload } from 'lucide-react';
 import { DECORS, FORMATS, OBJECTS, PRESETS, S_TO_L, SCHEMES, getAsset, type Format, type Kind, type Preset, type Size } from './core/catalog';
 import { layout, newUid, type LayoutInput } from './core/layout';
 import { matchNames } from './core/match';
+import { OWN_ROLES, addSchemes, customSchemes, parsePalettes, uiAccent } from './core/palette';
 import { canvasColor, decorMarkup, itemMarkup, itemSize, itemTransform, renderSvg, type Composition, type Item } from './core/render';
 import { BODIES } from './bodies';
 
@@ -76,7 +77,27 @@ const withBackground = (slugs: string[], background: string[]): LayoutInput[] =>
 const listing = (slugs: string[], background: string[]) =>
   [slugs.map(nameOf).join(', '), background.length ? `фон: ${background.map(nameOf).join(', ')}` : ''].filter(Boolean).join(' · ');
 
+// загруженные палитры помним в браузере зрителя; без доступа к localStorage они живут до перезагрузки
+const PALETTES_KEY = 'custom-palettes';
+function restorePalettes() {
+  try {
+    const saved = localStorage.getItem(PALETTES_KEY);
+    if (saved) addSchemes(parsePalettes(saved));
+  } catch {
+    // нет доступа или старая запись не проходит проверку — работаем со встроенными схемами
+  }
+}
+function savePalettes() {
+  try {
+    const schemes = customSchemes().map(({ id, name, colors }) => ({ id, name, colors: Object.fromEntries(OWN_ROLES.map((r) => [r, colors[r]])) }));
+    localStorage.setItem(PALETTES_KEY, JSON.stringify({ schemes }));
+  } catch {
+    // приватный режим и т. п.
+  }
+}
+
 export function App() {
+  useState(restorePalettes); // до первого рендера панели палитр
   const [comp, setComp] = useState<Composition>({ format: FORMATS[1], size: 'L', scheme: SCHEMES[0].id, scale: 1, items: [], decor: 'confetti' });
   const [preset, setPreset] = useState<Preset>('assembled');
   // подсветка пресета: true, пока расстановка сделана пресетом (А/Б, кнопка пресета, смена формата); ручные правки её гасят
@@ -164,12 +185,13 @@ export function App() {
         body: JSON.stringify({ query: metaphor }),
       });
       if (!res.ok) throw new Error(String(res.status));
-      const r = (await res.json()) as { slugs: string[]; background?: string[]; preset: Preset; source: string; model?: string; reason?: string };
+      const r = (await res.json()) as { slugs: string[]; background?: string[]; preset: Preset; source: string; model?: string; reason?: string; rateLimited?: boolean };
       const background = r.background ?? [];
       setPreset(r.preset);
       relayout(withBackground(r.slugs, background), r.preset);
+      const why = r.rateLimited ? 'слишком много запросов к LLM, повторите через минуту' : 'LLM недоступна';
       const how =
-        r.source === 'llm' ? `LLM (${r.model})` : r.source === 'keywords' ? 'поиск по ключевым словам (LLM недоступна)' : 'базовый набор: совпадений не найдено';
+        r.source === 'llm' ? `LLM (${r.model})` : r.source === 'keywords' ? `поиск по ключевым словам (${why})` : `базовый набор: совпадений не найдено (${why})`;
       say(`${listing(r.slugs, background)} — ${how}${r.reason ? `. ${r.reason}` : ''}`);
     } catch (e) {
       say(`Ошибка запроса: ${(e as Error).message}`, true);
@@ -262,6 +284,20 @@ export function App() {
     setArranged(false);
   }
 
+  const paletteFile = useRef<HTMLInputElement>(null);
+  async function importPalette(file: File) {
+    try {
+      if (file.size > 64_000) throw new Error('файл больше 64 КБ');
+      const list = parsePalettes(await file.text());
+      addSchemes(list);
+      savePalettes();
+      update((c) => ({ ...c, scheme: list[0].id }));
+      say(`Палитра «${list[0].name}» загружена${list.length > 1 ? ` (и ещё ${list.length - 1})` : ''}: объекты и фон перекрашены по ролям цветов`);
+    } catch (e) {
+      say(`Палитра не загружена: ${(e as Error).message}. Пример формата — /palette-example.json`, true);
+    }
+  }
+
   function exportSvg() {
     const blob = new Blob([renderSvg(comp, BODIES)], { type: 'image/svg+xml' });
     const a = document.createElement('a');
@@ -276,7 +312,7 @@ export function App() {
   const pxPerUnit = (svgRef.current?.clientWidth || comp.format.w) / comp.format.w;
   const lift = 8 / (comp.scale * pxPerUnit);
   const { w: W, h: H } = comp.format;
-  const accents = { '--accent': scheme.colors.bg3, '--sticker': scheme.colors.bg1 } as React.CSSProperties;
+  const accents = { '--accent': uiAccent(scheme), '--sticker': scheme.colors.bg1 } as React.CSSProperties;
 
   return (
     <div className="app" style={accents}>
@@ -413,6 +449,27 @@ export function App() {
                   <span className="swatch" style={{ background: `linear-gradient(90deg, ${s.colors.bg1} 0 34%, ${s.colors.bg2} 0 67%, ${s.colors.bg3} 0)` }} />
                 </button>
               ))}
+              <button
+                className="icon"
+                data-testid="palette-upload"
+                onClick={() => paletteFile.current?.click()}
+                aria-label="Загрузить свою палитру (JSON)"
+                title="Загрузить палитру: JSON с цветами фона bg1–bg3 и объектов obj1–obj3, пример — /palette-example.json"
+              >
+                <Upload size={16} />
+              </button>
+              <input
+                ref={paletteFile}
+                data-testid="palette-file"
+                type="file"
+                accept=".json,application/json"
+                hidden
+                onChange={(e) => {
+                  const f = e.target.files?.[0];
+                  e.target.value = ''; // тот же файл можно загрузить повторно после правки
+                  if (f) importPalette(f);
+                }}
+              />
             </div>
           </div>
           <div className="tool">

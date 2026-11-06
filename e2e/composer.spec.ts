@@ -178,3 +178,27 @@ test('декоративный фон: переключение и экспор�
   await page.getByTestId('add-pen').click();
   await expect(page.getByTestId('restore')).toHaveCount(0); // после нового действия возврата нет
 });
+
+test('своя палитра из JSON: перекраска холста и объектов, экспорт, запоминается; ошибки формата понятны', async ({ page }) => {
+  await page.goto('/');
+  await page.getByTestId('names').fill('лампа, кошелёк, монета');
+  await page.getByTestId('names-go').click();
+  await expect(items(page)).toHaveCount(3);
+
+  await page.getByTestId('palette-file').setInputFiles({ name: 'bad.json', mimeType: 'application/json', buffer: Buffer.from('{"name":"x","colors":{"bg1":"#fff"}}') });
+  await expect(page.getByTestId('status')).toContainText('Палитра не загружена');
+
+  await page.getByTestId('palette-file').setInputFiles('public/palette-example.json');
+  await expect(page.getByTestId('status')).toContainText('Палитра «Мятная» загружена');
+  await expect(page.getByTestId('scheme-mint')).toHaveAttribute('aria-pressed', 'true');
+  await expect(page.locator('[data-testid=canvas] > rect').first()).toHaveAttribute('fill', '#d4f0e4');
+
+  const svg = await exportSvg(page);
+  const used = new Set(svg.match(/#[0-9a-f]{6}/g));
+  for (const c of ['#d4f0e4', '#3f9f7c', '#ffe9a8']) expect(used).toContain(c);
+  // цвета исходной (сиреневой) схемы не остались
+  for (const c of ['#d7cdf5', '#7864d7', '#f9a3aa']) expect(used).not.toContain(c);
+
+  await page.reload();
+  await expect(page.getByTestId('scheme-mint')).toBeVisible();
+});
