@@ -551,9 +551,12 @@ export function App() {
                 <rect className="selection" x={-selBox.w / 2} y={-selBox.h / 2} width={selBox.w} height={selBox.h} />
                 {/* ручка поворота: 22 экранных пикселя над рамкой, радиус 7 px */}
                 <line className="rotate-stem" x1={0} y1={-selBox.h / 2} x2={0} y2={-selBox.h / 2 - 22 / pxPerUnit} />
-                <circle className="rotate-handle" data-handle="rotate" data-testid="rotate-handle" cx={0} cy={-selBox.h / 2 - 22 / pxPerUnit} r={7 / pxPerUnit}>
-                  <title>Повернуть (Shift — шаг 15°)</title>
-                </circle>
+                <g data-handle="rotate">
+                  <circle className="rotate-hit" cx={0} cy={-selBox.h / 2 - 22 / pxPerUnit} r={22 / pxPerUnit} />
+                  <circle className="rotate-handle" data-testid="rotate-handle" cx={0} cy={-selBox.h / 2 - 22 / pxPerUnit} r={7 / pxPerUnit}>
+                    <title>Повернуть (Shift — шаг 15°)</title>
+                  </circle>
+                </g>
               </g>
             )}
             {busy && (

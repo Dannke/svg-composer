@@ -229,3 +229,28 @@ test('поворот ручкой на холсте: вправо от цент�
   await page.keyboard.up('Shift');
   await expect(page.getByTestId('rotate')).toHaveValue('105');
 });
+
+test('мобильный экран 390 px: без горизонтальной прокрутки, панель «Объект» сразу под холстом, поворот касанием', async ({ browser }) => {
+  const ctx = await browser.newContext({ viewport: { width: 390, height: 844 }, hasTouch: true, isMobile: true });
+  const page = await ctx.newPage();
+  await page.goto('/');
+  await page.getByTestId('names').fill('книга, телефон, лампа, ручка');
+  await page.getByTestId('names-go').click();
+  await expect(items(page)).toHaveCount(4);
+  expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBeLessThanOrEqual(390);
+  await page.getByTestId('layers').getByRole('button').first().click();
+  const canvas = (await page.getByTestId('canvas').boundingBox())!;
+  const panel = (await page.getByTestId('selected-panel').boundingBox())!;
+  expect(panel.y).toBeGreaterThanOrEqual(canvas.y + canvas.height);
+  expect(panel.y - (canvas.y + canvas.height)).toBeLessThan(60);
+  // касание в 10 px от центра ручки (мимо видимого кружка) попадает в её зону касания
+  await page.getByTestId('rotate-handle').scrollIntoViewIfNeeded();
+  const h = (await page.getByTestId('rotate-handle').boundingBox())!;
+  const cdp = await ctx.newCDPSession(page);
+  const touch = (type: 'touchStart' | 'touchMove' | 'touchEnd', x = 0, y = 0) => cdp.send('Input.dispatchTouchEvent', { type, touchPoints: type === 'touchEnd' ? [] : [{ x, y }] });
+  await touch('touchStart', h.x + h.width / 2 + 10, h.y + h.height / 2);
+  for (let k = 1; k <= 5; k++) await touch('touchMove', h.x + h.width / 2 + 10 + k * 25, h.y + h.height / 2 + k * 20);
+  await touch('touchEnd');
+  await expect(page.getByTestId('rotate')).not.toHaveValue('0');
+  await ctx.close();
+});

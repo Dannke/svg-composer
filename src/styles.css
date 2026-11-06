@@ -149,6 +149,8 @@ button.icon { width: 32px; padding: 0; }
 .rotate-stem { stroke: var(--primary); stroke-width: 1.5; vector-effect: non-scaling-stroke; pointer-events: none; }
 .rotate-handle { fill: #fff; stroke: var(--primary); stroke-width: 2; vector-effect: non-scaling-stroke; cursor: grab; }
 .rotate-handle:active { cursor: grabbing; }
+/* невидимая зона касания вокруг ручки — пальцем в 14 px не попасть */
+.rotate-hit { fill: transparent; cursor: grab; }
 .skeleton rect { fill: #000; animation: pulse 1s ease-in-out infinite alternate; }
 @keyframes pulse { from { opacity: .04; } to { opacity: .1; } }
 .empty { position: absolute; max-width: 320px; padding: 0 16px; text-align: center; color: var(--ink-secondary); pointer-events: none; }
@@ -162,6 +164,9 @@ button.icon { width: 32px; padding: 0; }
   .toolbar .primary { margin-left: 0; }
   .canvas-wrap { padding: 16px; container-type: normal; }
   .canvas-wrap svg { width: 100%; }
+  /* выбранный объект правится, не уходя от холста: панель «Объект» — первой под холстом, а не под библиотекой */
+  .panel { display: flex; flex-direction: column; }
+  .selected-panel { order: -1; }
 }
 
 @media (prefers-reduced-motion: reduce) {
