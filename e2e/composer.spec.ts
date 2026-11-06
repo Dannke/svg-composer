@@ -136,8 +136,10 @@ test('фоновые объекты: «фоновые тюльпаны» поз�
   await page.getByTestId('lib-kind-bg').click();
   await page.getByTestId('add-lamp').click();
   await expect(items(page)).toHaveCount(3);
-  expect(await items(page).first().getAttribute('data-slug')).toBe('lamp');
-  expect(await items(page).first().getAttribute('data-kind')).toBe('bg');
+  // фоновые — нижними слоями (между собой по глубине сцены, друг друга не перекрывают), главный — над ними
+  const layers = await items(page).evaluateAll((els) => els.map((e) => `${e.getAttribute('data-slug')}-${e.getAttribute('data-kind')}`));
+  expect(layers.slice(0, 2).sort()).toEqual(['lamp-bg', 'tulips-bg']);
+  expect(layers[2]).toBe('headphones-main');
 
   const svg = await exportSvg(page);
   expect(svg).not.toMatch(/<image\b|data:image|<foreignObject/);

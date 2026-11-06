@@ -73,26 +73,58 @@ function partAt(p: Placed, size: Size, px: number, py: number) {
   return r >= 0 && c >= 0 && r < m.length && c < m[0].length && m[r][c] === '#';
 }
 
-/** flip — силуэт, отражённый по горизонтали относительно центра блока (для зеркальной раскладки). */
+const cross = (o: number[], a: number[], b: number[]) => (a[0] - o[0]) * (b[1] - o[1]) - (a[1] - o[1]) * (b[0] - o[0]);
+
+/** Выпуклая оболочка точек (монотонная цепь), обход в одном направлении. */
+function convexHull(points: number[][]) {
+  const ps = [...points].sort((a, b) => a[0] - b[0] || a[1] - b[1]);
+  const half = (list: number[][]) => {
+    const h: number[][] = [];
+    for (const p of list) {
+      while (h.length >= 2 && cross(h[h.length - 2], h[h.length - 1], p) <= 0) h.pop();
+      h.push(p);
+    }
+    return h.slice(0, -1);
+  };
+  return [...half(ps), ...half([...ps].reverse())];
+}
+
+/**
+ * Занятость клеток для упаковки — выпуклая оболочка силуэта, а не сам силуэт: под абажур лампы, внутрь
+ * дуги наушников, под цветы тюльпанов другой объект не заходит (ручка «на лампе» нелогична).
+ * flip — силуэт, отражённый по горизонтали относительно центра блока (для зеркальной раскладки).
+ */
 function silhouette(parts: Placed[], size: Size, b: ReturnType<typeof bounds>, flip: boolean): Sil {
   const cell = Math.max(b.w, b.h) / N;
   const cols = Math.ceil(b.w / cell);
   const rows = Math.ceil(b.h / cell);
-  const occ = new Uint8Array(cols * rows);
-  const pts: number[][] = [];
+  const corners: number[][] = [];
+  let bottom = -Infinity;
   for (let r = 0; r < rows; r++)
     for (let c = 0; c < cols; c++) {
       const x = b.x0 + (c + 0.5) * cell;
       const y = b.y0 + (r + 0.5) * cell;
       if (!parts.some((p) => partAt(p, size, flip ? 2 * b.cx - x : x, y))) continue;
-      occ[r * cols + c] = 1;
-      pts.push([x - b.cx, y - b.cy]);
+      corners.push([c, r], [c + 1, r], [c, r + 1], [c + 1, r + 1]);
+      bottom = Math.max(bottom, y - b.cy + cell / 2);
     }
-  return { cell, cols, rows, occ, pts, area: pts.length * cell * cell, bottom: Math.max(...pts.map((p) => p[1])) + cell / 2 };
+  const hull = convexHull(corners);
+  const occ = new Uint8Array(cols * rows);
+  const pts: number[][] = [];
+  for (let r = 0; r < rows; r++)
+    for (let c = 0; c < cols; c++) {
+      const q = [c + 0.5, r + 0.5];
+      const side = hull.map((p, i) => cross(p, hull[(i + 1) % hull.length], q));
+      if (!(side.every((s) => s >= 0) || side.every((s) => s <= 0))) continue;
+      occ[r * cols + c] = 1;
+      pts.push([b.x0 + q[0] * cell - b.cx, b.y0 + q[1] * cell - b.cy]);
+    }
+  return { cell, cols, rows, occ, pts, area: pts.length * cell * cell, bottom };
 }
 
-/** Какую долю меньшего из двух силуэтов закрывает их пересечение. */
-function cover(a: Shape, b: Shape) {
+/** Какую долю меньшего из двух силуэтов закрывает их пересечение. Перебираются клетки более мелкой сетки — иначе крупные клетки большого объекта «проскакивают» маленький. */
+function cover(a: Shape, b: Shape): number {
+  if (b.sil.cell > a.sil.cell) return cover(b, a);
   const s = a.sil;
   let n = 0;
   for (const [px, py] of b.sil.pts) {
@@ -123,11 +155,19 @@ function approach(a: Shape, b: Shape, u: number[], target: number) {
 const DIRS = [26.57, -26.57, 153.43, -153.43, 45, -45, 135, -135, 0, 180].map((d) => [Math.cos((d * Math.PI) / 180), Math.sin((d * Math.PI) / 180)]);
 
 /**
- * «Собранно»: сосед заходит на соседа на target меньшего силуэта (в эталоне SVG-drop объекты слегка налегают),
- * с остальными — не больше others. «Со смещением»: от касания отступить ещё на 15 % расстояния, ни с кем не пересекаться.
+ * Наложения — как в «Примерах композиций» ТЗ: силуэты пересекаются только у укладок (телефон на книге,
+ * пазлы на книге / телефоне — src/data/stacking.json, они пакуются одним блоком), остальные объекты лишь касаются.
+ * «Собранно» — вплотную по оболочкам (3 % на точность сетки маски), «Со смещением» — с зазором 15 % расстояния от касания.
  */
-const DENSE = { target: 0.08, stretch: 1, others: 0.04 };
-const SPREAD = { target: 0, stretch: 1.15, others: 0 };
+const DENSE = { target: 0, stretch: 1.03, others: 0, gap: 1 };
+/** gap — силуэты обоих объектов, увеличенные на 6 % от своих центров, не пересекаются: зазор со всеми, не только с соседом */
+const SPREAD = { target: 0, stretch: 1.15, others: 0, gap: 1.06 };
+
+/** Силуэт, увеличенный от центра в k раз (та же сетка, крупнее клетки). */
+const inflate = (s: Shape, k: number): Shape =>
+  k === 1 ? s : { ...s, w: s.w * k, h: s.h * k, sil: { ...s.sil, cell: s.sil.cell * k, pts: s.sil.pts.map(([x, y]) => [x * k, y * k]), area: s.sil.area * k * k } };
+/** Главный объект перед фоновым закрывает его не больше чем на 6 % (в примерах ТЗ — 1–5 %). */
+const BG_COVER = 0.06;
 
 function bounds(ps: Box[]) {
   const x0 = Math.min(...ps.map((p) => p.x - p.w / 2));
@@ -168,7 +208,8 @@ function packFrom(order: number[], units: Shape[], area: { w: number; h: number 
         const t = approach(a, u, d, mode.target) * mode.stretch;
         const box = { ...u, x: a.x + d[0] * t, y: a.y + d[1] * t };
         // и с соседом проверяем заново: после отступа stretch силуэты с вогнутостями (лампа) могут снова сойтись
-        if (placed.some((c) => cover(c, box) > (c === a ? mode.target : mode.others) + 1e-9)) continue;
+        const wide = inflate(box, mode.gap);
+        if (placed.some((c) => cover(inflate(c, mode.gap), wide) > (c === a ? mode.target : mode.others) + 1e-9)) continue;
         const centred = 1 - (0.05 * Math.hypot(box.x - b!.cx, box.y - b!.cy)) / Math.hypot(b!.w, b!.h);
         // мелкий объект охотнее встаёт перед крупным (ниже по кадру), как монета перед кошельком в «Примерах композиций»
         const front = d[1] > 0 && u.sil.area < a.sil.area ? 1.03 : 1;
@@ -215,14 +256,53 @@ function arrange(inputs: LayoutInput[], size: Size, spread: boolean, area: { w: 
     .sort((p, q) => p.at.y + p.at.sil.bottom - (q.at.y + q.at.sil.bottom))
     .flatMap(({ b, at }) => b.g.map((p) => ({ ...p, x: flipX * at.x + p.x - b.box.x, y: at.y + p.y - b.box.y })));
 
+  if (!backRoots.length) return front;
+
   // как в «Примерах композиций» Figma (24:3592, 24:2654, 24:2914 и их версии в других форматах):
   // центр фонового объекта выше верхнего края главных на ~0.4 его высоты и сдвинут вбок
-  // (первый влево, второй вправо); слоем позади всех главных
+  // (первый влево, второй вправо, дальше по очереди), слоем позади всех главных.
+  // Фоновые не пересекаются друг с другом, главные закрывают фоновый не больше BG_COVER:
+  // если место занято, фоновый отодвигается наружу (от центра), а при наложении на главные — вверх.
   const fb = bounds(front);
-  const behind = backRoots.flatMap((i, k) =>
-    group(i, fb.cx + (k % 2 ? 0.4 : -0.4) * fb.w, fb.y0 - 0.4 * all[i].h).map((p, n) => (n ? p : { ...p, back: true })),
-  );
-  return [...behind, ...front];
+  const real = (b: (typeof blocks)[number], k: number): Shape => {
+    const bb = bounds(b.g);
+    return { x: flipX * boxes[k].x, y: boxes[k].y, w: bb.w, h: bb.h, sil: silhouette(b.g, size, bb, false) };
+  };
+  const mains = blocks.map(real);
+  const placedBg: Shape[] = [];
+  const behind: Placed[] = [];
+  const guests: Placed[] = [];
+  // рамки для вписывания: главные целиком, у фоновых — нижняя половина (fitBox)
+  const fitOf = (ps: Box[]) => fitScale([...front, ...ps.map((p) => ({ x: p.x, y: p.y + p.h / 4, w: p.w, h: p.h / 2 }))], area);
+  backRoots.forEach((i, k) => {
+    const side = k % 2 ? 1 : -1;
+    const g = group(i);
+    const gb = bounds(g);
+    const shape = { x: 0, y: 0, w: gb.w, h: gb.h, sil: silhouette(g, size, gb, false) };
+    const step = 0.04 * Math.max(gb.w, gb.h);
+    // занятое другим фоновым место обходим наружу (ряд вширь) или вверх (второй ряд) — что впишется крупнее
+    const search = (outward: boolean) => {
+      // (hx, hy) — центр самого фонового объекта (основания блока)
+      let [hx, hy] = [fb.cx + side * 0.4 * fb.w, fb.y0 - 0.4 * all[i].h];
+      for (let n = 0; n < 400; n++) {
+        const at = { ...shape, x: hx + gb.cx, y: hy + gb.cy };
+        if (placedBg.some((c) => cover(c, at) > 0)) outward ? (hx += side * step) : (hy -= step);
+        else if (mains.some((m) => cover(m, at) > BG_COVER)) hy -= step;
+        else break;
+      }
+      return { hx, hy };
+    };
+    const [a, b] = [search(true), search(false)];
+    const score = (p: { hx: number; hy: number }) => fitOf([...placedBg, { ...shape, x: p.hx + gb.cx, y: p.hy + gb.cy }]);
+    const { hx, hy } = score(b) > score(a) + 1e-9 ? b : a;
+    placedBg.push({ ...shape, x: hx + gb.cx, y: hy + gb.cy });
+    const [host, ...onTop] = g.map((p) => ({ ...p, x: p.x + hx, y: p.y + hy }));
+    behind.push({ ...host, back: true });
+    guests.push(...onTop);
+  });
+  // фоновые — по глубине между собой; уложенные на них главные (пазлы на фоновой книге) — над всеми фоновыми
+  behind.sort((p, q) => p.y + p.h / 2 - (q.y + q.h / 2));
+  return [...behind, ...guests, ...front];
 }
 
 /** Рамка для вписывания: у фонового объекта — только нижняя половина, верхняя может уйти за край кадра. */
