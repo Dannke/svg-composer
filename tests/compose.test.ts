@@ -1,5 +1,5 @@
 import { describe, expect, it, vi } from 'vitest';
-import { compose, HEDGE_MS, parseLlmAnswer } from '../src/server/compose';
+import { compose, HEDGE_MS, overLimit, parseLlmAnswer, RATE_LIMIT } from '../src/server/compose';
 
 const answer = (content: string) => new Response(JSON.stringify({ choices: [{ message: { content } }] }), { status: 200 });
 
@@ -80,6 +80,13 @@ describe('compose: модели, запасной режим, кэш', () => {
     const next = await compose('лимит-тест учёба', { apiKey: 'k', models: ['a:free'], fetch: f });
     expect(next).toMatchObject({ source: 'llm', slugs: ['book', 'pen'] });
     expect(next.rateLimited).toBeUndefined();
+  });
+  it('скользящее окно: седьмой запрос за минуту с адреса — сверх лимита, через минуту снова можно', () => {
+    const t = 1_000_000;
+    for (let i = 0; i < RATE_LIMIT; i++) expect(overLimit('1.2.3.4', t + i)).toBe(false);
+    expect(overLimit('1.2.3.4', t + 10)).toBe(true);
+    expect(overLimit('5.6.7.8', t + 10)).toBe(false); // другой адрес не затронут
+    expect(overLimit('1.2.3.4', t + 61_000)).toBe(false);
   });
   it('успешный ответ LLM кэшируется', async () => {
     const f = vi.fn().mockResolvedValue(answer('{"objects":["lamp"]}'));

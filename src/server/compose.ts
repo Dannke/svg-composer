@@ -101,6 +101,23 @@ interface Deps {
   rateLimited?: boolean;
 }
 
+/** Запросов к LLM с одного адреса за минуту. */
+export const RATE_LIMIT = 6;
+const hits = new Map<string, number[]>();
+/**
+ * Скользящее окно: true — адрес превысил RATE_LIMIT за 60 с (запрос засчитывается).
+ * На проде вызывается внутри Durable Object ComposeLimiter (worker/index.ts), одного на адрес, —
+ * в памяти обычного изолята счёт бесполезен: запросы Worker разлетаются по разным изолятам.
+ */
+export function overLimit(key: string, now = Date.now()) {
+  const recent = (hits.get(key) ?? []).filter((t) => now - t < 60_000);
+  recent.push(now);
+  hits.delete(key); // Map помнит порядок вставки: в начале — давно молчавшие адреса
+  hits.set(key, recent);
+  if (hits.size > 5000) hits.delete(hits.keys().next().value!);
+  return recent.length > RATE_LIMIT;
+}
+
 export async function compose(query: string, deps: Deps = {}): Promise<ComposeResult> {
   const key = query.trim().toLowerCase();
   const hit = cache.get(key);
