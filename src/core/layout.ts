@@ -29,18 +29,18 @@ const PAD = 0.06;
  */
 function stackHosts(inputs: LayoutInput[]) {
   const busy = new Set<number>();
-  return inputs.map((it, i) => {
-    if (it.kind !== 'main') return null;
-    for (const p of stacking.pairs) {
-      if (p.guest !== it.slug) continue;
+  const hosts: ({ host: number; dx: number; dy: number } | null)[] = inputs.map(() => null);
+  // приоритет — порядок пар в stacking.json, а не порядок ввода: пары из эталонов Figma стоят первыми,
+  // поэтому добавленные позже пары (ручка на книге) не отнимают основание у эталонных (телефон на книге)
+  for (const p of stacking.pairs)
+    inputs.forEach((it, i) => {
+      if (it.kind !== 'main' || it.slug !== p.guest || hosts[i]) return;
       const host = inputs.findIndex((x, j) => j !== i && x.slug === p.host && !busy.has(j));
-      if (host >= 0) {
-        busy.add(host);
-        return { host, dx: p.dx, dy: p.dy };
-      }
-    }
-    return null;
-  });
+      if (host < 0) return;
+      busy.add(host);
+      hosts[i] = { host, dx: p.dx, dy: p.dy };
+    });
+  return hosts;
 }
 
 /**

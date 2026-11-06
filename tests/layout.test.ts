@@ -79,6 +79,56 @@ describe('укладка по эталону SVG-drop (телефон на кн�
     expect((onBook.cy - book.cy) / (getAsset('book', 'L', 'main').bbox.h * r.scale)).toBeCloseTo(-0.1499, 4);
     expect(Math.abs(second.cx - onBook.cx)).toBeGreaterThan(1);
   });
+
+  // кто на ком лежит: guest>host по точке укладки из stacking.json
+  const stacks = (r: ReturnType<typeof layout>) =>
+    r.items.flatMap((g) =>
+      r.items.flatMap((h) =>
+        stacking.pairs
+          .filter((p) => g !== h && g.slug === p.guest && h.slug === p.host)
+          .filter((p) => {
+            const { w, h: hh } = getAsset(h.slug, 'L', h.kind).bbox;
+            return Math.abs(g.cx - h.cx - p.dx * w * r.scale) < 0.5 && Math.abs(g.cy - h.cy - p.dy * hh * r.scale) < 0.5;
+          })
+          .map((p) => `${p.guest}>${p.host}`),
+      ),
+    ).sort();
+
+  it('приоритет — порядок пар, а не порядок ввода: новые укладки не отнимают основание у эталонных', () => {
+    // ручка введена первой, но книгу получает телефон (эталон), ручка уходит на папку, если она есть
+    expect(stacks(layout(main('pen', 'phone', 'book'), 'L', FORMATS[1], 'assembled', uid))).toEqual(['phone>book']);
+    expect(stacks(layout(main('pen', 'phone', 'book', 'folder'), 'L', FORMATS[1], 'assembled', uid))).toEqual(['pen>folder', 'phone>book']);
+    expect(stacks(layout(main('pen', 'book'), 'L', FORMATS[1], 'assembled', uid))).toEqual(['pen>book']);
+  });
+
+  it('на одно основание — один объект; укладки складываются в цепочки', () => {
+    expect(stacks(layout(main('pen', 'wallet', 'phone', 'folder'), 'L', FORMATS[1], 'assembled', uid))).toEqual(['phone>folder']);
+    expect(stacks(layout(main('coin', 'wallet', 'folder'), 'L', FORMATS[1], 'assembled', uid))).toEqual(['coin>wallet', 'wallet>folder']);
+    expect(stacks(layout(main('puzzle', 'phone', 'folder'), 'L', FORMATS[1], 'assembled', uid))).toEqual(['phone>folder', 'puzzle>phone']);
+  });
+
+  it('в stacking.json нет циклов (иначе блок укладки рекурсивно ссылался бы сам на себя)', () => {
+    const next = (slug: string) => stacking.pairs.filter((p) => p.guest === slug).map((p) => p.host);
+    const reaches = (from: string, to: string, seen = new Set<string>()): boolean =>
+      next(from).some((h) => h === to || (!seen.has(h) && (seen.add(h), reaches(h, to, seen))));
+    for (const p of stacking.pairs) expect(reaches(p.host, p.guest), `${p.guest}>${p.host}`).toBe(false);
+  });
+
+  it('каждый уложенный объект лежит на основании: не меньше 85 % его силуэта — на силуэте основания (L и S)', () => {
+    for (const size of ['L', 'S'] as const)
+      for (const p of stacking.pairs) {
+        const r = layout(main(p.host, p.guest), size, FORMATS[0], 'assembled', uid);
+        const [h, g] = [p.host, p.guest].map((s) => shapeOf(r.items.find((i) => i.slug === s)!, r.scale, size));
+        const on = g.pts.filter(([x, y]) => h.inRaw(x, y)).length / g.pts.length;
+        expect(on, `${size} ${p.guest}>${p.host}`).toBeGreaterThanOrEqual(0.85);
+      }
+  });
+
+  it('основанием может быть фоновый объект, уложенный — только главный', () => {
+    const ins = (...xs: [string, Kind][]) => xs.map(([slug, kind]) => ({ slug, kind }));
+    expect(stacks(layout(ins(['wallet', 'bg'], ['coin', 'main'], ['lamp', 'main']), 'L', FORMATS[1], 'assembled', uid))).toEqual(['coin>wallet']);
+    expect(stacks(layout(ins(['folder', 'main'], ['phone', 'bg']), 'L', FORMATS[1], 'assembled', uid))).toEqual([]);
+  });
 });
 
 describe('упаковка кластером', () => {
@@ -88,9 +138,16 @@ describe('упаковка кластером', () => {
     return { w: Math.max(...bs.map((b) => b.x1)) - Math.min(...bs.map((b) => b.x0)), h: Math.max(...bs.map((b) => b.y1)) - Math.min(...bs.map((b) => b.y0)) };
   };
 
-  it('порядок слоёв — по глубине: чем ниже нижний край объекта, тем выше слой', () => {
+  it('порядок слоёв — по глубине: чем ниже нижний край силуэта, тем выше слой', () => {
+    // без пар из stacking.json: уложенный объект рисуется сразу над основанием, а не по глубине
+    const free = ['lamp', 'headphones', 'tulips', 'coin', 'pen'].map((slug) => ({ slug, kind: 'main' as Kind }));
     for (const f of FORMATS) {
-      const bottoms = box(layout(set, 'L', f, 'assembled', uid).items, layout(set, 'L', f, 'assembled', uid).scale).map((b) => b.y1);
+      const r = layout(free, 'L', f, 'assembled', uid);
+      // по силуэту, а не по рамке: у монеты в Figma рамка ниже рисунка
+      const bottoms = r.items.map((it) => {
+        const s = shapeOf(it, r.scale, 'L');
+        return Math.max(...s.pts.map((p) => p[1])) + s.cell / 2;
+      });
       for (let i = 1; i < bottoms.length; i++) expect(bottoms[i]).toBeGreaterThanOrEqual(bottoms[i - 1] - 1e-6);
     }
   });
