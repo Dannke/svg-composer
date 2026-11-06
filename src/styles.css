@@ -146,6 +146,9 @@ button.icon { width: 32px; padding: 0; }
 .canvas-wrap svg { display: block; width: min(100cqw, 100cqh * var(--ratio)); height: auto; border-radius: var(--r-xs); box-shadow: 0 0 0 1px var(--hairline), var(--shadow-1); touch-action: none; }
 .item { cursor: move; }
 .selection { fill: none; stroke: var(--primary); stroke-width: 1.5; vector-effect: non-scaling-stroke; stroke-dasharray: 6 4; pointer-events: none; }
+.rotate-stem { stroke: var(--primary); stroke-width: 1.5; vector-effect: non-scaling-stroke; pointer-events: none; }
+.rotate-handle { fill: #fff; stroke: var(--primary); stroke-width: 2; vector-effect: non-scaling-stroke; cursor: grab; }
+.rotate-handle:active { cursor: grabbing; }
 .skeleton rect { fill: #000; animation: pulse 1s ease-in-out infinite alternate; }
 @keyframes pulse { from { opacity: .04; } to { opacity: .1; } }
 .empty { position: absolute; max-width: 320px; padding: 0 16px; text-align: center; color: var(--ink-secondary); pointer-events: none; }

@@ -127,7 +127,8 @@ export function App() {
   };
   const [flipKey, setFlipKey] = useState(0);
   const svgRef = useRef<SVGSVGElement>(null);
-  const drag = useRef<{ uid: string; dx: number; dy: number } | null>(null);
+  // перетаскивание объекта или ручки поворота над рамкой выделения
+  const drag = useRef<{ uid: string; dx: number; dy: number; rotate?: boolean } | null>(null);
   // задержка появления по uid: каскад при сборке композиции
   const enterDelay = useRef<Record<string, number>>({});
 
@@ -269,6 +270,11 @@ export function App() {
     return { x: pt.x, y: pt.y };
   };
   function onPointerDown(e: React.PointerEvent) {
+    if (sel && (e.target as Element).closest('[data-handle=rotate]')) {
+      drag.current = { uid: sel.uid, dx: 0, dy: 0, rotate: true };
+      svgRef.current!.setPointerCapture(e.pointerId);
+      return;
+    }
     const g = (e.target as Element).closest('[data-uid]');
     const it = g && comp.items.find((i) => i.uid === g.getAttribute('data-uid'));
     if (!it) return setSelected(null); // пустое место или объект, который сейчас исчезает
@@ -280,7 +286,14 @@ export function App() {
   function onPointerMove(e: React.PointerEvent) {
     if (!drag.current) return;
     const p = toCanvas(e);
-    updateItem(drag.current.uid, { cx: p.x - drag.current.dx, cy: p.y - drag.current.dy });
+    if (drag.current.rotate) {
+      const it = comp.items.find((i) => i.uid === drag.current!.uid);
+      if (!it) return;
+      // ручка над объектом: угол 0° — ручка строго сверху; с Shift — шаг 15°
+      const deg = (Math.atan2(p.y - it.cy, p.x - it.cx) * 180) / Math.PI + 90;
+      const snapped = e.shiftKey ? Math.round(deg / 15) * 15 : Math.round(deg);
+      updateItem(it.uid, { rotation: ((((snapped + 180) % 360) + 360) % 360) - 180 });
+    } else updateItem(drag.current.uid, { cx: p.x - drag.current.dx, cy: p.y - drag.current.dy });
     setArranged(false);
   }
 
@@ -534,14 +547,14 @@ export function App() {
               ))}
             </AnimatePresence>
             {sel && selBox && (
-              <rect
-                className="selection"
-                x={-selBox.w / 2}
-                y={-selBox.h / 2}
-                width={selBox.w}
-                height={selBox.h}
-                transform={`translate(${sel.cx} ${sel.cy}) rotate(${sel.rotation})`}
-              />
+              <g transform={`translate(${sel.cx} ${sel.cy}) rotate(${sel.rotation})`}>
+                <rect className="selection" x={-selBox.w / 2} y={-selBox.h / 2} width={selBox.w} height={selBox.h} />
+                {/* ручка поворота: 22 экранных пикселя над рамкой, радиус 7 px */}
+                <line className="rotate-stem" x1={0} y1={-selBox.h / 2} x2={0} y2={-selBox.h / 2 - 22 / pxPerUnit} />
+                <circle className="rotate-handle" data-handle="rotate" data-testid="rotate-handle" cx={0} cy={-selBox.h / 2 - 22 / pxPerUnit} r={7 / pxPerUnit}>
+                  <title>Повернуть (Shift — шаг 15°)</title>
+                </circle>
+              </g>
             )}
             {busy && (
               <g className="skeleton" aria-hidden="true">

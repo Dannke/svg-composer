@@ -202,3 +202,28 @@ test('своя палитра из JSON: перекраска холста и о
   await page.reload();
   await expect(page.getByTestId('scheme-mint')).toBeVisible();
 });
+
+test('поворот ручкой на холсте: вправо от центра — 90°, Shift — шаг 15°', async ({ page }) => {
+  await page.goto('/');
+  await page.getByTestId('names').fill('кошелёк');
+  await page.getByTestId('names-go').click();
+  await page.getByTestId('layers').getByRole('button').first().click();
+  const handle = (await page.getByTestId('rotate-handle').boundingBox())!;
+  const frame = (await page.locator('.selection').boundingBox())!;
+  const [cx, cy] = [frame.x + frame.width / 2, frame.y + frame.height / 2];
+  await page.mouse.move(handle.x + handle.width / 2, handle.y + handle.height / 2);
+  await page.mouse.down();
+  await page.mouse.move(cx + 150, cy, { steps: 5 });
+  await page.mouse.up();
+  await expect(page.getByTestId('rotate')).toHaveValue('90');
+  await expect(items(page).first()).toHaveAttribute('transform', /rotate\(90\)/);
+
+  const h2 = (await page.getByTestId('rotate-handle').boundingBox())!;
+  await page.keyboard.down('Shift');
+  await page.mouse.move(h2.x + h2.width / 2, h2.y + h2.height / 2);
+  await page.mouse.down();
+  await page.mouse.move(cx + 150, cy + 47, { steps: 5 }); // ≈107° → 105°
+  await page.mouse.up();
+  await page.keyboard.up('Shift');
+  await expect(page.getByTestId('rotate')).toHaveValue('105');
+});
