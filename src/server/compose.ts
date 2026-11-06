@@ -10,6 +10,8 @@ export interface ComposeResult {
   source: 'llm' | 'keywords' | 'default';
   model?: string;
   reason?: string;
+  /** LLM пропущена: этот адрес превысил лимит запросов (Cloudflare Rate Limiting в worker/index.ts) */
+  rateLimited?: boolean;
 }
 
 // по замерам scripts/bench-llm.ts (2026-11-04, без размышлений): Nemotron 0.7–1.2 с, Dots 1.8–2.7 с, все ответы валидны;
@@ -95,6 +97,8 @@ interface Deps {
   apiKey?: string;
   models?: string[];
   fetch?: typeof fetch;
+  /** превышен лимит запросов: без LLM, ответ запасного режима не кэшируется */
+  rateLimited?: boolean;
 }
 
 export async function compose(query: string, deps: Deps = {}): Promise<ComposeResult> {
@@ -103,7 +107,7 @@ export async function compose(query: string, deps: Deps = {}): Promise<ComposeRe
   if (hit) return hit;
 
   let result: ComposeResult | null = null;
-  if (deps.apiKey) {
+  if (deps.apiKey && !deps.rateLimited) {
     const doFetch = deps.fetch ?? fetch;
     const stop = new AbortController();
     const signal = AbortSignal.any([stop.signal, AbortSignal.timeout(TIMEOUT_MS)]);
@@ -150,8 +154,9 @@ export async function compose(query: string, deps: Deps = {}): Promise<ComposeRe
       ? { slugs, background: fallbackBackground(slugs), preset: 'assembled', source: 'keywords' }
       : { slugs: DEFAULT_SET, background: [], preset: 'assembled', source: 'default' };
   }
-  // запасной ответ при сбое LLM не кэшируем — следующая попытка может пройти
-  if (result.source === 'llm' || !deps.apiKey) {
+  if (deps.rateLimited && result.source !== 'llm') result = { ...result, rateLimited: true };
+  // запасной ответ при сбое или лимите LLM не кэшируем — следующая попытка может пройти
+  if (result.source === 'llm' || (!deps.apiKey && !deps.rateLimited)) {
     if (cache.size > 500) cache.delete(cache.keys().next().value!);
     cache.set(key, result);
   }
@@ -159,7 +164,7 @@ export async function compose(query: string, deps: Deps = {}): Promise<ComposeRe
 }
 
 /** Общий HTTP-обработчик (Web Request/Response) — для Cloudflare Worker и для dev/preview-сервера Vite. */
-export async function handleCompose(req: Request, env: Record<string, string | undefined>): Promise<Response> {
+export async function handleCompose(req: Request, env: Record<string, string | undefined>, rateLimited = false): Promise<Response> {
   if (req.method !== 'POST') return new Response('Method Not Allowed', { status: 405 });
   let query = '';
   try {
@@ -171,6 +176,7 @@ export async function handleCompose(req: Request, env: Record<string, string | u
   const result = await compose(query, {
     apiKey: env.OPENROUTER_API_KEY,
     models: env.OPENROUTER_MODELS?.split(',').map((s) => s.trim()).filter(Boolean),
+    rateLimited,
   });
   return Response.json(result);
 }

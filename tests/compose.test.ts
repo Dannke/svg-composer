@@ -72,6 +72,15 @@ describe('compose: модели, запасной режим, кэш', () => {
     expect(a.slugs).toContain('headphones');
     expect(b).toBe(a);
   });
+  it('лимит запросов: LLM не вызывается, ответ помечен и не кэшируется — следующий запрос без лимита идёт в LLM', async () => {
+    const f = vi.fn().mockResolvedValue(answer('{"objects":["book","pen"]}'));
+    const limited = await compose('лимит-тест учёба', { apiKey: 'k', models: ['a:free'], fetch: f, rateLimited: true });
+    expect(f).not.toHaveBeenCalled();
+    expect(limited).toMatchObject({ source: 'keywords', rateLimited: true });
+    const next = await compose('лимит-тест учёба', { apiKey: 'k', models: ['a:free'], fetch: f });
+    expect(next).toMatchObject({ source: 'llm', slugs: ['book', 'pen'] });
+    expect(next.rateLimited).toBeUndefined();
+  });
   it('успешный ответ LLM кэшируется', async () => {
     const f = vi.fn().mockResolvedValue(answer('{"objects":["lamp"]}'));
     await compose('кэш-тест', { apiKey: 'k', models: ['a:free'], fetch: f });
