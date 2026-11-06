@@ -16,7 +16,8 @@ test('сценарий Б: названия с опечаткой и слово�
   await expect(items(page)).toHaveCount(3);
   await expect(page.getByTestId('preset-assembled')).toHaveAttribute('aria-pressed', 'true');
   await expect(page.getByTestId('status')).toContainText('Лампа, Наушники, Книга');
-  expect(await items(page).evaluateAll((els) => els.map((e) => e.getAttribute('data-slug')))).toEqual(['lamp', 'headphones', 'book']);
+  // порядок в DOM — по глубине сцены, а не по вводу
+  expect((await items(page).evaluateAll((els) => els.map((e) => e.getAttribute('data-slug')))).sort()).toEqual(['book', 'headphones', 'lamp']);
 });
 
 test('сценарий А: метафора → объекты (LLM, локально без ключа — запасной поиск по смыслам)', async ({ page }) => {
@@ -55,9 +56,9 @@ test('S/L, все цветовые схемы, пресеты, правка об
   }
 
   // выбор объекта, фоновый вид, поворот, дублирование, удаление
-  // верхний слой: нижние объекты частично закрыты уложенными сверху (телефон на книге, пазлы на телефоне)
+  // верхний слой выбираем в списке «Слои» (первая строка): в плотной композиции центр рамки объекта может быть пустым
   const target = items(page).nth(5);
-  await target.click();
+  await page.getByTestId('layers').getByRole('button').first().click();
   await page.getByTestId('kind-bg').click();
   await expect(target).toHaveAttribute('data-kind', 'bg');
   await page.getByTestId('rotate').fill('30');
