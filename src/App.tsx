@@ -210,6 +210,7 @@ export function App() {
 
   // объект из библиотеки сразу встраивается в композицию; первый объект включает «Собранно»
   function addObject(slug: string, kind: Kind) {
+    say(''); // прежнее сообщение («Холст очищен», список из Б) к новой композиции уже не относится
     const p = comp.items.length ? preset : 'assembled';
     setPreset(p);
     // новый фоновый — самым нижним слоем

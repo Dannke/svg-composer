@@ -189,6 +189,7 @@ test('декоративный фон: переключение и экспор�
   await page.getByTestId('clear').click();
   await page.getByTestId('add-pen').click();
   await expect(page.getByTestId('restore')).toHaveCount(0); // после нового действия возврата нет
+  await expect(page.getByTestId('status')).toHaveText(''); // и «Холст очищен» не остаётся
 });
 
 test('своя палитра из JSON: перекраска холста и объектов, экспорт, запоминается; ошибки формата понятны', async ({ page }) => {
