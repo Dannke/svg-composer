@@ -10,12 +10,14 @@ async function exportSvg(page: Page) {
 
 test('сценарий Б: названия с опечаткой и словоформой → композиция', async ({ page }) => {
   await page.goto('/');
-  await expect(page.getByTestId('preset-assembled')).toHaveAttribute('aria-pressed', 'false'); // пустой холст — пресет не горит
   await page.getByTestId('names').fill('лампу, нушники и книга');
   await page.getByTestId('names-go').click();
   await expect(items(page)).toHaveCount(3);
-  await expect(page.getByTestId('preset-assembled')).toHaveAttribute('aria-pressed', 'true');
+  await expect(page.getByTestId('preset')).toHaveValue('assembled');
   await expect(page.getByTestId('status')).toContainText('Лампа, Наушники, Книга');
+  // тулбар в один ряд от 1280 px: «Скачать SVG» не уезжает во второй ряд
+  await page.setViewportSize({ width: 1280, height: 720 });
+  expect((await page.locator('.toolbar').boundingBox())!.height).toBeLessThan(100);
   // порядок в DOM — по глубине сцены, а не по вводу
   expect((await items(page).evaluateAll((els) => els.map((e) => e.getAttribute('data-slug')))).sort()).toEqual(['book', 'headphones', 'lamp']);
 });
@@ -48,8 +50,8 @@ test('S/L, все цветовые схемы, пресеты, правка об
     await page.getByTestId(`scheme-${scheme}`).click();
     await expect(page.locator('[data-testid=canvas] > rect').first()).toHaveAttribute('fill', bg);
     for (const preset of ['assembled', 'offset', 'underTitle']) {
-      await page.getByTestId(`preset-${preset}`).click();
-      await expect(page.getByTestId(`preset-${preset}`)).toHaveAttribute('aria-pressed', 'true');
+      await page.getByTestId('preset').selectOption(preset);
+      await expect(page.getByTestId('preset')).toHaveValue(preset);
       await page.waitForTimeout(500); // переход между пресетами анимирован
       await page.getByTestId('canvas').screenshot({ path: `test-results/shots/${scheme}-${preset}.png` });
     }
@@ -80,12 +82,12 @@ test('S/L, все цветовые схемы, пресеты, правка об
 
 test('библиотека: каждый добавленный объект сразу собирается в композицию, первый включает «Собранно»', async ({ page }) => {
   await page.goto('/');
-  await page.getByTestId('preset-offset').click(); // на пустом холсте выбран другой пресет
+  await page.getByTestId('preset').selectOption('offset'); // на пустом холсте выбран другой пресет
   await page.getByTestId('add-pen').click();
-  await expect(page.getByTestId('preset-assembled')).toHaveAttribute('aria-pressed', 'true');
-  await page.getByTestId('preset-offset').click();
+  await expect(page.getByTestId('preset')).toHaveValue('assembled');
+  await page.getByTestId('preset').selectOption('offset');
   await page.getByTestId('add-tulips').click();
-  await expect(page.getByTestId('preset-offset')).toHaveAttribute('aria-pressed', 'true'); // дальше пресет сохраняется
+  await expect(page.getByTestId('preset')).toHaveValue('offset'); // дальше пресет сохраняется
   await expect(items(page)).toHaveCount(2);
   await page.waitForTimeout(500); // анимация появления
   const canvas = (await page.getByTestId('canvas').boundingBox())!;
@@ -97,7 +99,15 @@ test('библиотека: каждый добавленный объект с�
   }
   await page.getByTestId('add-lamp').click();
   await expect(items(page)).toHaveCount(3);
-  await expect(page.getByTestId('preset-offset')).toHaveAttribute('aria-pressed', 'true');
+  await expect(page.getByTestId('preset')).toHaveValue('offset');
+  // после ручной правки пресет не показан; выбор того же пресета снова расставляет объекты
+  await page.getByTestId('layers').getByRole('button').first().click();
+  await page.getByTestId('duplicate').click();
+  await expect(page.getByTestId('preset')).toHaveValue('');
+  await expect(page.getByTestId('preset').locator('option:checked')).toHaveText('Вручную');
+  await page.getByTestId('preset').selectOption('offset');
+  await expect(page.getByTestId('preset')).toHaveValue('offset');
+  await expect(items(page)).toHaveCount(4);
 });
 
 test('библиотека сворачивается и помнит состояние после перезагрузки', async ({ page }) => {
@@ -154,11 +164,11 @@ test('декоративный фон: переключение и экспор�
   await page.getByTestId('names-go').click();
   await expect(items(page)).toHaveCount(3);
   for (const d of ['confetti', 'blob']) {
-    await page.getByTestId(`decor-${d}`).click();
+    await page.getByTestId('decor').selectOption(d);
     for (const f of ['1000x1000', '1200x630', '800x1200']) {
       const [w, h] = f.split('x');
-      await page.getByTestId(`format-${f}`).click();
-      await expect(page.getByTestId(`format-${f}`)).toHaveAttribute('aria-pressed', 'true');
+      await page.getByTestId('format').selectOption(f);
+      await expect(page.getByTestId('format')).toHaveValue(f);
       await expect(page.getByTestId('canvas')).toHaveAttribute('viewBox', `0 0 ${w} ${h}`);
       await page.waitForTimeout(500);
       await page.getByTestId('canvas').screenshot({ path: `test-results/shots/decor-${d}-${f}.png` });
@@ -168,7 +178,7 @@ test('декоративный фон: переключение и экспор�
       expect(svg.match(/<g id="(headphones|coin|tulips)"/g)).toHaveLength(3);
     }
   }
-  await page.getByTestId('decor-none').click();
+  await page.getByTestId('decor').selectOption('');
   expect(await exportSvg(page)).not.toContain('id="decor"');
 
   await page.getByTestId('clear').click();

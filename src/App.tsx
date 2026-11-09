@@ -430,91 +430,77 @@ export function App() {
 
       <main className="stage">
         <div className="toolbar">
-          <div className="tool">
-            <span className="tool-label" id="l-format">Формат</span>
-            <div className="segmented" role="group" aria-labelledby="l-format">
-              {FORMATS.map((f) => (
-                <button key={f.id} data-testid={`format-${f.id}`} className={comp.format.id === f.id ? 'on' : ''} aria-pressed={comp.format.id === f.id} onClick={() => setFormat(f)}>{f.w}×{f.h}</button>
-              ))}
+          <div className="settings">
+            <div className="tool">
+              <label className="tool-label" htmlFor="format">Формат</label>
+              <select id="format" data-testid="format" value={comp.format.id} onChange={(e) => setFormat(FORMATS.find((f) => f.id === e.target.value)!)}>
+                {FORMATS.map((f) => <option key={f.id} value={f.id}>{f.w}×{f.h}</option>)}
+              </select>
             </div>
-          </div>
-          <div className="tool">
-            <span className="tool-label" id="l-size">Размер объектов</span>
-            <div className="segmented" role="group" aria-labelledby="l-size">
-              {(['S', 'L'] as Size[]).map((s) => (
-                <button key={s} data-testid={`size-${s}`} className={comp.size === s ? 'on' : ''} aria-pressed={comp.size === s} onClick={() => setSize(s)}>{s}</button>
-              ))}
+            <div className="tool">
+              <span className="tool-label" id="l-size">Размер объектов</span>
+              <div className="segmented" role="group" aria-labelledby="l-size">
+                {(['S', 'L'] as Size[]).map((s) => (
+                  <button key={s} data-testid={`size-${s}`} className={comp.size === s ? 'on' : ''} aria-pressed={comp.size === s} onClick={() => setSize(s)}>{s}</button>
+                ))}
+              </div>
             </div>
-          </div>
-          <div className="tool">
-            <span className="tool-label" id="l-scheme">Палитра</span>
-            <div className="segmented" role="group" aria-labelledby="l-scheme">
-              {SCHEMES.map((s) => (
+            <div className="tool">
+              <span className="tool-label" id="l-scheme">Палитра</span>
+              <div className="segmented" role="group" aria-labelledby="l-scheme">
+                {SCHEMES.map((s) => (
+                  <button
+                    key={s.id}
+                    data-testid={`scheme-${s.id}`}
+                    className={comp.scheme === s.id ? 'on swatch-btn' : 'swatch-btn'}
+                    aria-pressed={comp.scheme === s.id}
+                    aria-label={s.name}
+                    title={s.name}
+                    onClick={() => update((c) => ({ ...c, scheme: s.id }))}
+                  >
+                    <span className="swatch" style={{ background: `linear-gradient(90deg, ${s.colors.bg1} 0 34%, ${s.colors.bg2} 0 67%, ${s.colors.bg3} 0)` }} />
+                  </button>
+                ))}
                 <button
-                  key={s.id}
-                  data-testid={`scheme-${s.id}`}
-                  className={comp.scheme === s.id ? 'on swatch-btn' : 'swatch-btn'}
-                  aria-pressed={comp.scheme === s.id}
-                  aria-label={s.name}
-                  title={s.name}
-                  onClick={() => update((c) => ({ ...c, scheme: s.id }))}
+                  className="icon"
+                  data-testid="palette-upload"
+                  onClick={() => paletteFile.current?.click()}
+                  aria-label="Загрузить свою палитру (JSON)"
+                  title="Загрузить палитру: JSON с цветами фона bg1–bg3 и объектов obj1–obj3, пример — /palette-example.json"
                 >
-                  <span className="swatch" style={{ background: `linear-gradient(90deg, ${s.colors.bg1} 0 34%, ${s.colors.bg2} 0 67%, ${s.colors.bg3} 0)` }} />
+                  <Upload size={16} />
                 </button>
-              ))}
-              <button
-                className="icon"
-                data-testid="palette-upload"
-                onClick={() => paletteFile.current?.click()}
-                aria-label="Загрузить свою палитру (JSON)"
-                title="Загрузить палитру: JSON с цветами фона bg1–bg3 и объектов obj1–obj3, пример — /palette-example.json"
-              >
-                <Upload size={16} />
-              </button>
-              <input
-                ref={paletteFile}
-                data-testid="palette-file"
-                type="file"
-                accept=".json,application/json"
-                hidden
-                onChange={(e) => {
-                  const f = e.target.files?.[0];
-                  e.target.value = ''; // тот же файл можно загрузить повторно после правки
-                  if (f) importPalette(f);
-                }}
-              />
+                <input
+                  ref={paletteFile}
+                  data-testid="palette-file"
+                  type="file"
+                  accept=".json,application/json"
+                  hidden
+                  onChange={(e) => {
+                    const f = e.target.files?.[0];
+                    e.target.value = ''; // тот же файл можно загрузить повторно после правки
+                    if (f) importPalette(f);
+                  }}
+                />
+              </div>
+            </div>
+            <div className="tool">
+              <label className="tool-label" htmlFor="decor">Фон</label>
+              <select id="decor" data-testid="decor" value={comp.decor ?? ''} onChange={(e) => update((c) => ({ ...c, decor: DECORS.find((d) => d.id === e.target.value)?.id }))}>
+                <option value="">Без декора</option>
+                {DECORS.map((d) => <option key={d.id} value={d.id}>{d.name}</option>)}
+              </select>
+            </div>
+            <div className="tool">
+              <label className="tool-label" htmlFor="preset">Раскладка</label>
+              {/* после ручной правки пресет не показан — «Вручную»; выбор того же пресета снова расставляет объекты */}
+              <select id="preset" data-testid="preset" value={arranged || !comp.items.length ? preset : ''} onChange={(e) => choosePreset(e.target.value as Preset)}>
+                <option value="" disabled hidden>Вручную</option>
+                {PRESETS.map((p) => <option key={p.id} value={p.id}>{p.name}</option>)}
+              </select>
             </div>
           </div>
-          <div className="tool">
-            <span className="tool-label" id="l-decor">Фон</span>
-            <div className="segmented" role="group" aria-labelledby="l-decor">
-              <button data-testid="decor-none" className={!comp.decor ? 'on' : ''} aria-pressed={!comp.decor} onClick={() => update((c) => ({ ...c, decor: undefined }))}>Без декора</button>
-              {DECORS.map((d) => (
-                <button key={d.id} data-testid={`decor-${d.id}`} className={comp.decor === d.id ? 'on' : ''} aria-pressed={comp.decor === d.id} onClick={() => update((c) => ({ ...c, decor: d.id }))}>{d.name}</button>
-              ))}
-            </div>
-          </div>
-          <div className="tool">
-            <span className="tool-label" id="l-preset">Раскладка</span>
-            <div className="segmented" role="group" aria-labelledby="l-preset">
-              {PRESETS.map((p) => {
-                // подсвечен, только пока расстановка сделана этим пресетом
-                const on = arranged && preset === p.id;
-                return <button key={p.id} data-testid={`preset-${p.id}`} className={on ? 'on' : ''} aria-pressed={on} onClick={() => choosePreset(p.id)}>{p.name}</button>;
-              })}
-            </div>
-          </div>
-          <div className="tool">
-            <span className="tool-label" id="l-zoom">Масштаб</span>
-            <div className="segmented" role="group" aria-labelledby="l-zoom">
-              <button className="icon" disabled={!comp.items.length} onClick={() => zoom(1 / 1.1)} title="Уменьшить всю композицию" aria-label="Уменьшить всю композицию"><Minus size={16} /></button>
-              <button className="icon" disabled={!comp.items.length} onClick={() => zoom(1.1)} title="Увеличить всю композицию" aria-label="Увеличить всю композицию"><Plus size={16} /></button>
-            </div>
-          </div>
-          <button data-testid="clear" className="secondary clear" disabled={!comp.items.length} onClick={clearCanvas} title="Убрать все объекты с холста">
-            <Eraser size={16} aria-hidden="true" />Очистить
-          </button>
-          <button data-testid="export" className={comp.items.length ? 'primary' : 'secondary'} disabled={!comp.items.length} onClick={exportSvg}>
+          <button data-testid="export" className={comp.items.length ? 'primary export' : 'secondary export'} disabled={!comp.items.length} onClick={exportSvg}>
             <Download size={16} aria-hidden="true" />Скачать SVG
           </button>
         </div>
@@ -573,6 +559,16 @@ export function App() {
               <p>Опишите идею (А), перечислите объекты (Б) или выберите объект в библиотеке.</p>
             </div>
           )}
+        </div>
+
+        <div className="canvas-tools">
+          <div className="segmented" role="group" aria-label="Масштаб">
+            <button className="icon" disabled={!comp.items.length} onClick={() => zoom(1 / 1.1)} title="Уменьшить всю композицию" aria-label="Уменьшить всю композицию"><Minus size={16} /></button>
+            <button className="icon" disabled={!comp.items.length} onClick={() => zoom(1.1)} title="Увеличить всю композицию" aria-label="Увеличить всю композицию"><Plus size={16} /></button>
+          </div>
+          <button data-testid="clear" className="secondary" disabled={!comp.items.length} onClick={clearCanvas} title="Убрать все объекты с холста">
+            <Eraser size={16} aria-hidden="true" />Очистить
+          </button>
         </div>
       </main>
     </div>

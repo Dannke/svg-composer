@@ -151,13 +151,29 @@ button.icon { width: 34px; padding: 0; }
 
 /* Сцена: холст — «лист», приподнятый над тёплым фоном */
 .stage { display: flex; flex-direction: column; min-width: 0; min-height: 0; }
-.toolbar { display: flex; flex-wrap: wrap; gap: 12px; align-items: flex-end; padding: 12px 24px; background: var(--canvas); border-bottom: 1px solid var(--hairline); }
+/* Тулбар: настройки слева переносятся только внутри своей группы, «Скачать SVG» всегда справа вверху */
+.toolbar { display: flex; gap: 12px; align-items: flex-start; padding: 12px 24px; background: var(--canvas); border-bottom: 1px solid var(--hairline); }
+.settings { flex: 1; min-width: 0; display: flex; flex-wrap: wrap; gap: 12px; align-items: flex-end; }
+/* на высоту подписи группы (16 px) и зазора (4 px) — вровень с контролами первого ряда */
+.export { flex: none; margin-top: 20px; }
 .tool { display: grid; gap: 4px; }
 /* подпись группы бывает шире переключателя — он не растягивается под неё */
 .tool .segmented { justify-self: start; }
 /* eyebrow */
 .tool-label { font-size: 12px; line-height: 1.33; font-weight: 600; letter-spacing: 0.125px; color: var(--ink-muted); }
-.toolbar .clear { margin-left: auto; }
+/* Выпадающий список в виде utility-кнопки: body-sm, рамка --hairline, radius-md, шеврон справа */
+.tool select {
+  appearance: none; height: 34px; padding: 4px 34px 4px 12px; font: 400 15px/1.33 var(--font-sans); color: var(--ink); cursor: pointer;
+  background: var(--surface) url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='16' height='16' viewBox='0 0 24 24' fill='none' stroke='%23615d59' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='m6 9 6 6 6-6'/%3E%3C/svg%3E") no-repeat right 10px center;
+  border: 1px solid var(--hairline); border-radius: var(--radius-md);
+  transition: background-color .15s var(--ease), border-color .15s var(--ease);
+}
+.tool select:hover { background-color: var(--canvas-soft); border-color: var(--input-border); }
+/* Масштаб и «Очистить» — плашка в углу холста */
+.stage { position: relative; }
+.canvas-tools { position: absolute; right: 24px; bottom: 24px; z-index: 1; display: flex; gap: 8px; align-items: center; }
+.canvas-tools .segmented, .canvas-tools .secondary { background: var(--surface); box-shadow: var(--shadow-soft); }
+.canvas-tools .secondary:hover:not(:disabled) { background: var(--canvas-soft); }
 /* caption */
 .undo { padding: 0 8px; margin-left: 4px; font-size: 14px; line-height: 1.43; color: var(--ink-secondary); }
 .canvas-wrap { position: relative; flex: 1; min-height: 0; padding: 32px; display: grid; place-items: center; container-type: size; }
@@ -180,8 +196,12 @@ button.icon { width: 34px; padding: 0; }
   .app { grid-template-columns: 1fr; height: auto; }
   .stage { order: -1; }
   .panel { border-right: 0; border-top: 1px solid var(--hairline); }
-  .toolbar { padding: 12px 16px; }
-  .toolbar .primary { margin-left: 0; }
+  .toolbar { padding: 12px 16px; flex-wrap: wrap; }
+  .settings { flex-basis: 100%; }
+  .export { margin-top: 0; }
+  /* плашка холста — обычной строкой между тулбаром и холстом: в углу она закрыла бы рисунок */
+  .canvas-tools { position: static; order: -1; padding: 12px 16px 0; }
+  .stage > .toolbar { order: -2; }
   .canvas-wrap { padding: 16px; container-type: normal; }
   .canvas-wrap svg { width: 100%; }
   /* выбранный объект правится, не уходя от холста: панель «Объект» — первой под холстом, а не под библиотекой */
@@ -190,6 +210,7 @@ button.icon { width: 34px; padding: 0; }
   /* зона касания ≥ 44 px */
   button { min-height: 44px; }
   button.icon, .swatch-btn { min-width: 44px; }
+  .tool select { height: 44px; }
   .segmented { padding: 0; }
   .segmented button, .segmented button.icon { height: 44px; min-width: 44px; }
   .h-toggle { min-height: 44px; }
