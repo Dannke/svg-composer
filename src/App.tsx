@@ -340,7 +340,7 @@ export function App() {
           <h2>Создать</h2>
           <div className="field">
             <label htmlFor="metaphor"><span className="step">А</span>Метафора или заголовок</label>
-            <textarea id="metaphor" data-testid="metaphor" value={metaphor} onChange={(e) => setMetaphor(e.target.value)} placeholder="Например: «Как накопить на мечту»" rows={2} />
+            <textarea id="metaphor" data-testid="metaphor" value={metaphor} onChange={(e) => setMetaphor(e.target.value)} placeholder="«Как накопить на мечту»" rows={2} />
             <button data-testid="metaphor-go" className={comp.items.length ? 'secondary' : 'primary'} disabled={busy} aria-busy={busy} onClick={fromMetaphor}>
               {busy && <Loader2 className="spin" size={16} aria-hidden="true" />}
               {busy ? 'Подбираю…' : 'Собрать по смыслу'}
@@ -357,7 +357,7 @@ export function App() {
             {status}
             {cleared && !comp.items.length && (
               <button className="ghost undo" data-testid="restore" onClick={restoreCanvas}>
-                <Undo2 size={14} aria-hidden="true" />Вернуть
+                <Undo2 size={16} aria-hidden="true" />Вернуть
               </button>
             )}
           </p>
@@ -400,15 +400,15 @@ export function App() {
               <span>Поворот <output>{Math.round(sel.rotation)}°</output></span>
               <input data-testid="rotate" type="range" min={-180} max={180} value={sel.rotation} onChange={(e) => updateItem(sel.uid, { rotation: Number(e.target.value) })} />
             </label>
-            <div className="row">
-              <div className="segmented" role="group" aria-label="Порядок слоя">
-                <button className="icon" onClick={() => move(sel.uid, 'top')} title="На передний план" aria-label="На передний план"><ArrowUpToLine size={16} /></button>
-                <button className="icon" onClick={() => move(sel.uid, 'up')} title="Выше" aria-label="Выше"><ArrowUp size={16} /></button>
-                <button className="icon" onClick={() => move(sel.uid, 'down')} title="Ниже" aria-label="Ниже"><ArrowDown size={16} /></button>
-                <button className="icon" onClick={() => move(sel.uid, 'bottom')} title="На задний план" aria-label="На задний план"><ArrowDownToLine size={16} /></button>
-              </div>
-              <button data-testid="duplicate" className="ghost" onClick={() => duplicate(sel.uid)}><Copy size={16} aria-hidden="true" />Дублировать</button>
-              <button data-testid="delete" className="ghost danger" onClick={() => remove(sel.uid)}><Trash2 size={16} aria-hidden="true" />Удалить</button>
+            <div className="segmented" role="group" aria-label="Порядок слоя">
+              <button className="icon" onClick={() => move(sel.uid, 'top')} title="На передний план" aria-label="На передний план"><ArrowUpToLine size={16} /></button>
+              <button className="icon" onClick={() => move(sel.uid, 'up')} title="Выше" aria-label="Выше"><ArrowUp size={16} /></button>
+              <button className="icon" onClick={() => move(sel.uid, 'down')} title="Ниже" aria-label="Ниже"><ArrowDown size={16} /></button>
+              <button className="icon" onClick={() => move(sel.uid, 'bottom')} title="На задний план" aria-label="На задний план"><ArrowDownToLine size={16} /></button>
+            </div>
+            <div className="actions">
+              <button data-testid="duplicate" onClick={() => duplicate(sel.uid)}><Copy size={16} aria-hidden="true" />Дублировать</button>
+              <button data-testid="delete" className="danger" onClick={() => remove(sel.uid)}><Trash2 size={16} aria-hidden="true" />Удалить</button>
             </div>
           </section>
         )}
@@ -448,22 +448,25 @@ export function App() {
             </div>
             <div className="tool">
               <span className="tool-label" id="l-scheme">Палитра</span>
-              <div className="segmented" role="group" aria-labelledby="l-scheme">
-                {SCHEMES.map((s) => (
-                  <button
-                    key={s.id}
-                    data-testid={`scheme-${s.id}`}
-                    className={comp.scheme === s.id ? 'on swatch-btn' : 'swatch-btn'}
-                    aria-pressed={comp.scheme === s.id}
-                    aria-label={s.name}
-                    title={s.name}
-                    onClick={() => update((c) => ({ ...c, scheme: s.id }))}
-                  >
-                    <span className="swatch" style={{ background: `linear-gradient(90deg, ${s.colors.bg1} 0 34%, ${s.colors.bg2} 0 67%, ${s.colors.bg3} 0)` }} />
-                  </button>
-                ))}
+              <div className="row">
+                <div className="segmented" role="group" aria-labelledby="l-scheme">
+                  {SCHEMES.map((s) => (
+                    <button
+                      key={s.id}
+                      data-testid={`scheme-${s.id}`}
+                      className={comp.scheme === s.id ? 'on swatch-btn' : 'swatch-btn'}
+                      aria-pressed={comp.scheme === s.id}
+                      aria-label={s.name}
+                      title={s.name}
+                      onClick={() => update((c) => ({ ...c, scheme: s.id }))}
+                    >
+                      <span className="swatch" style={{ background: `linear-gradient(90deg, ${s.colors.bg1} 0 34%, ${s.colors.bg2} 0 67%, ${s.colors.bg3} 0)` }} />
+                    </button>
+                  ))}
+                </div>
+                {/* загрузка — действие, а не вариант выбора: отдельной кнопкой рядом с образцами */}
                 <button
-                  className="icon"
+                  className="icon secondary"
                   data-testid="palette-upload"
                   onClick={() => paletteFile.current?.click()}
                   aria-label="Загрузить свою палитру (JSON)"

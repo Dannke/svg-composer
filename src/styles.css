@@ -51,7 +51,7 @@ h1, h2, p { margin: 0; }
 /* title */
 .brand h1 { font-size: 20px; line-height: 1.4; font-weight: 600; letter-spacing: -0.125px; }
 /* caption */
-.brand p { color: var(--ink-muted); font-size: 14px; line-height: 1.43; }
+.brand p { color: var(--ink-muted); font-size: 14px; line-height: 1.43; text-wrap: balance; }
 section { border-top: 1px solid var(--hairline); padding: 16px 0; }
 /* eyebrow */
 h2 { font-size: 12px; line-height: 1.33; font-weight: 600; letter-spacing: 0.125px; color: var(--ink-secondary); margin-bottom: 12px; display: flex; gap: 8px; align-items: baseline; }
@@ -108,7 +108,7 @@ button.primary { padding: 4px 16px; border-radius: var(--radius-full); backgroun
 button.primary:hover:not(:disabled) { background: color-mix(in srgb, var(--primary) 88%, #000); }
 button.primary:active:not(:disabled) { background: var(--primary-active); transform: scale(0.9); }
 button.danger { color: var(--danger); }
-button.icon { width: 34px; padding: 0; }
+button.icon { width: 34px; height: 34px; padding: 0; }
 .spin { animation: spin 0.9s linear infinite; }
 @keyframes spin { to { transform: rotate(360deg); } }
 
@@ -118,8 +118,9 @@ button.icon { width: 34px; padding: 0; }
 .segmented button { height: 24px; padding: 0 8px; border: 0; border-radius: var(--radius-sm); color: var(--ink-secondary); font: 400 15px/1.33 var(--font-sans); white-space: nowrap; }
 .segmented button.icon { width: 24px; padding: 0; }
 .segmented button:hover:not(:disabled):not(.on) { background: var(--hover); color: var(--ink); }
-.segmented button.on { background: var(--surface); color: var(--primary); box-shadow: 0 0 0 1px var(--hairline), var(--shadow-soft), inset 0 -2px 0 var(--primary); }
-.swatch-btn { width: 36px; padding: 0 !important; }
+.segmented button.on { background: var(--surface); color: var(--ink); box-shadow: 0 0 0 1px var(--hairline), var(--shadow-soft), inset 0 -2px 0 var(--primary); }
+/* 32, а не 36: с отдельной кнопкой загрузки тулбар по-прежнему в один ряд на 1280 px */
+.swatch-btn { width: 32px; padding: 0 !important; }
 .swatch { width: 20px; height: 14px; border-radius: var(--radius-xs); box-shadow: inset 0 0 0 1px rgb(0 0 0 / .12); }
 
 /* Библиотека: малые карточки (radius-md) с плиткой-иллюстрацией на цвете схемы */
@@ -142,10 +143,12 @@ button.icon { width: 34px; padding: 0; }
 .row { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; }
 .row .segmented { margin: 0; }
 
-/* Слои: строки списка (radius-sm), активная — с индикатором --primary */
+/* Слои и действия с объектом: строки списка 36 px (radius-sm), активная — с индикатором --primary */
 .layers { list-style: none; margin: 0; padding: 0; display: grid; gap: 4px; }
-.layers button { width: 100%; justify-content: flex-start; font: 400 15px/1.33 var(--font-sans); padding: 8px 12px; border-radius: var(--radius-sm); }
-.layers button:hover:not(.on) { background: var(--hover); }
+.actions { display: grid; gap: 4px; }
+.layers button, .actions button { width: 100%; justify-content: flex-start; font: 400 15px/1.33 var(--font-sans); padding: 8px 12px; border: 0; border-radius: var(--radius-sm); }
+.layers button:hover:not(.on), .actions button:hover { background: var(--hover); }
+.actions button:active { background: var(--pressed); }
 .layers button.on { background: var(--pressed); box-shadow: inset 2px 0 0 var(--primary); }
 .tag { margin-left: auto; font-size: 12px; line-height: 1.33; font-weight: 600; letter-spacing: 0.125px; padding: 0 8px; border: 1px solid var(--hairline); border-radius: var(--radius-xs); color: var(--ink-muted); background: var(--surface); }
 
@@ -169,14 +172,16 @@ button.icon { width: 34px; padding: 0; }
   transition: background-color .15s var(--ease), border-color .15s var(--ease);
 }
 .tool select:hover { background-color: var(--canvas-soft); border-color: var(--input-border); }
-/* Масштаб и «Очистить» — плашка в углу холста */
+/* Масштаб и «Очистить» — плашка в правом нижнем углу сцены, в нижнем поле под холстом */
 .stage { position: relative; }
 .canvas-tools { position: absolute; right: 24px; bottom: 24px; z-index: 1; display: flex; gap: 8px; align-items: center; }
 .canvas-tools .segmented, .canvas-tools .secondary { background: var(--surface); box-shadow: var(--shadow-soft); }
 .canvas-tools .secondary:hover:not(:disabled) { background: var(--canvas-soft); }
 /* caption */
 .undo { padding: 0 8px; margin-left: 4px; font-size: 14px; line-height: 1.43; color: var(--ink-secondary); }
-.canvas-wrap { position: relative; flex: 1; min-height: 0; padding: 32px; display: grid; place-items: center; container-type: size; }
+/* бока 24 — как у тулбара, края холста и контролов совпадают;
+   низ 68 = плашка 34 + её отступ 24 + зазор 10: плашка не закрывает квадратный и вертикальный холст */
+.canvas-wrap { position: relative; flex: 1; min-height: 0; padding: 32px 24px 68px; display: grid; place-items: center; container-type: size; }
 .canvas-wrap svg { display: block; width: min(100cqw, 100cqh * var(--ratio)); height: auto; border-radius: var(--radius-xs); box-shadow: 0 0 0 1px var(--hairline), var(--shadow-soft); touch-action: none; }
 .item { cursor: move; }
 .selection { fill: none; stroke: var(--primary); stroke-width: 1.5; vector-effect: non-scaling-stroke; stroke-dasharray: 6 4; pointer-events: none; }
@@ -210,7 +215,8 @@ button.icon { width: 34px; padding: 0; }
   /* зона касания ≥ 44 px */
   button { min-height: 44px; }
   button.icon, .swatch-btn { min-width: 44px; }
-  .tool select { height: 44px; }
+  /* вровень с переключателями: 44 + рамка дорожки 2 */
+  .tool select { height: 46px; }
   .segmented { padding: 0; }
   .segmented button, .segmented button.icon { height: 44px; min-width: 44px; }
   .h-toggle { min-height: 44px; }
