@@ -201,9 +201,14 @@ button.icon { width: 34px; height: 34px; padding: 0; }
   .app { grid-template-columns: 1fr; height: auto; }
   .stage { order: -1; }
   .panel { border-right: 0; border-top: 1px solid var(--hairline); }
-  .toolbar { padding: 12px 16px; flex-wrap: wrap; }
-  .settings { flex-basis: 100%; }
-  .export { margin-top: 0; }
+  /* «Скачать SVG» справа вверху: первая строка — «Формат» и кнопка, разрыв (::after), ниже остальные настройки;
+     вертикальный шаг — margin-bottom, а не row-gap, иначе пустая строка разрыва добавила бы лишние 12 px */
+  .toolbar { padding: 12px 16px 0; flex-wrap: wrap; row-gap: 0; }
+  .settings { display: contents; }
+  .tool { margin-bottom: 12px; }
+  .tool:first-child { order: -2; }
+  .export { order: -1; margin: 20px 0 12px auto; min-height: 46px; }
+  .toolbar::after { content: ''; order: -1; flex-basis: 100%; }
   /* плашка холста — обычной строкой между тулбаром и холстом: в углу она закрыла бы рисунок */
   .canvas-tools { position: static; order: -1; padding: 12px 16px 0; }
   .stage > .toolbar { order: -2; }
