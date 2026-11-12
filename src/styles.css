@@ -99,6 +99,8 @@ button {
   transition: background-color .15s var(--ease), border-color .15s var(--ease), box-shadow .15s var(--ease), transform .1s var(--ease);
 }
 button:disabled { opacity: .4; cursor: not-allowed; }
+/* занята, а не выключена: полная яркость; повторное нажатие всё равно блокирует disabled */
+button[aria-busy='true']:disabled { opacity: 1; cursor: progress; }
 :focus-visible { outline: 2px solid var(--primary); outline-offset: 2px; }
 button.secondary { background: var(--surface); border-color: var(--hairline); }
 button.secondary:hover:not(:disabled), button.ghost:hover:not(:disabled) { background: var(--canvas-soft); }
@@ -183,17 +185,23 @@ button.icon { width: 34px; height: 34px; padding: 0; }
    низ 68 = плашка 34 + её отступ 24 + зазор 10: плашка не закрывает квадратный и вертикальный холст */
 .canvas-wrap { position: relative; flex: 1; min-height: 0; padding: 32px 24px 68px; display: grid; place-items: center; container-type: size; }
 .canvas-wrap svg { display: block; width: min(100cqw, 100cqh * var(--ratio)); height: auto; border-radius: var(--radius-xs); box-shadow: 0 0 0 1px var(--hairline), var(--shadow-soft); touch-action: none; }
-.item { cursor: move; }
+.item { cursor: move; transition: opacity .15s var(--ease); }
 .selection { fill: none; stroke: var(--primary); stroke-width: 1.5; vector-effect: non-scaling-stroke; stroke-dasharray: 6 4; pointer-events: none; }
 .rotate-stem { stroke: var(--primary); stroke-width: 1.5; vector-effect: non-scaling-stroke; pointer-events: none; }
 .rotate-handle { fill: #fff; stroke: var(--primary); stroke-width: 2; vector-effect: non-scaling-stroke; cursor: grab; }
 .rotate-handle:active { cursor: grabbing; }
 /* невидимая зона касания вокруг ручки — пальцем в 14 px не попасть */
 .rotate-hit { fill: transparent; cursor: grab; }
-.skeleton rect { fill: #000; animation: pulse 1s ease-in-out infinite alternate; }
-@keyframes pulse { from { opacity: .04; } to { opacity: .1; } }
+/* цвет — bg3 схемы (задан на <g>); прозрачность и без анимации, иначе при reduced-motion плашки сплошные */
+.skeleton rect { opacity: .24; animation: pulse 1s ease-in-out infinite alternate; }
+@keyframes pulse { from { opacity: .16; } to { opacity: .32; } }
+/* пересборка: прежняя композиция бледнеет и не принимает мышь, пока не придёт новая */
+.canvas-wrap[aria-busy='true'] .item { opacity: .4; pointer-events: none; }
 /* body-md */
-.empty { position: absolute; max-width: 360px; padding: 0 16px; text-align: center; font-size: 16px; line-height: 1.5; color: var(--ink-secondary); pointer-events: none; }
+/* текст пустого холста — в той же ячейке сетки, что и холст: центрируются одинаково при любых полях,
+   а на узком экране текст не шире холста */
+.canvas-wrap > * { grid-area: 1 / 1; }
+.empty { position: relative; max-width: 360px; padding: 0 16px; text-align: center; font-size: 16px; line-height: 1.5; color: var(--ink-secondary); pointer-events: none; }
 /* heading-3 */
 .empty-title { font-size: 22px; line-height: 1.27; font-weight: 700; letter-spacing: -0.25px; color: var(--ink); margin-bottom: 8px; }
 

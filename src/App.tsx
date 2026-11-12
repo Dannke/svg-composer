@@ -178,6 +178,7 @@ export function App() {
   async function fromMetaphor() {
     if (!metaphor.trim()) return;
     setBusy(true);
+    setSelected(null); // композиция будет заменена — рамку и ручку поворота убираем сразу
     say('Подбираю объекты…');
     try {
       const res = await fetch('/api/compose', {
@@ -343,7 +344,7 @@ export function App() {
             <textarea id="metaphor" data-testid="metaphor" value={metaphor} onChange={(e) => setMetaphor(e.target.value)} placeholder="«Как накопить на мечту»" rows={2} />
             <button data-testid="metaphor-go" className={comp.items.length ? 'secondary' : 'primary'} disabled={busy} aria-busy={busy} onClick={fromMetaphor}>
               {busy && <Loader2 className="spin" size={16} aria-hidden="true" />}
-              {busy ? 'Подбираю…' : 'Собрать по смыслу'}
+              Собрать по смыслу
             </button>
           </div>
           <p className="or" aria-hidden="true">или</p>
@@ -549,8 +550,9 @@ export function App() {
                 </g>
               </g>
             )}
-            {busy && (
-              <g className="skeleton" aria-hidden="true">
+            {/* заглушка — только на пустом холсте; при пересборке бледнеет прежняя композиция (styles.css) */}
+            {busy && !comp.items.length && (
+              <g className="skeleton" fill={scheme.colors.bg3} aria-hidden="true">
                 {[-1, 0, 1].map((k) => (
                   <rect key={k} x={W / 2 + k * W * 0.22 - W * 0.09} y={H / 2 - H * 0.16 + (k % 2) * H * 0.06} width={W * 0.18} height={H * 0.32} rx={Math.min(W, H) * 0.02} />
                 ))}
@@ -560,7 +562,7 @@ export function App() {
           {!comp.items.length && !busy && (
             <div className="empty">
               <p className="empty-title">Холст пуст</p>
-              <p>Опишите идею (А), перечислите объекты (Б) или выберите объект в библиотеке.</p>
+              <p>Опишите идею <span className="step">А</span>, перечислите объекты <span className="step">Б</span> или выберите объект в библиотеке</p>
             </div>
           )}
         </div>
